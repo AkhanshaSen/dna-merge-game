@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>🧬 DNA Merge — Species Survival Engine</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧬</text></svg>"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09111f;--bg2:#0e1829;--bg3:#141f35;--bg4:#1a2840;
+  --border:rgba(90,130,255,0.12);--border2:rgba(90,130,255,0.28);
+  --text:#dde8ff;--text2:#7a90bb;--text3:#48597a;
+  --blue:#4f7fff;--purple:#9b5fff;--green:#2dffb3;
+  --amber:#ffb84f;--red:#ff4f6b;--teal:#4fffdf;
+  --font:'Space Grotesk',sans-serif;--mono:'Space Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+button{font-family:var(--font);cursor:pointer;border:none;background:none;color:inherit}
+button:disabled{cursor:not-allowed;opacity:.35;pointer-events:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ── Layout ── */
+#wrap{max-width:900px;margin:0 auto;padding:0 1rem 6rem}
+
+/* ── Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes float{0%,100%{transform:translateY(0) rotate(0deg)}30%{transform:translateY(-9px) rotate(2deg)}70%{transform:translateY(5px) rotate(-1.5deg)}}
+@keyframes pop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes glow{0%,100%{box-shadow:0 0 18px rgba(79,127,255,.25)}50%{box-shadow:0 0 36px rgba(79,127,255,.55)}}
+@keyframes dot{0%,80%,100%{transform:translateY(0);opacity:.35}40%{transform:translateY(-7px);opacity:1}}
+
+.anim-up{animation:fadeUp .45s cubic-bezier(.16,1,.3,1) both}
+.anim-pop{animation:pop .45s cubic-bezier(.16,1,.3,1) both}
+.anim-shake{animation:shake .45s ease both}
+.anim-float{animation:float 4.5s ease-in-out infinite}
+.s1{animation-delay:.06s}.s2{animation-delay:.12s}.s3{animation-delay:.18s}.s4{animation-delay:.24s}
+
+/* ── Header ── */
+.hdr{padding:2rem 0 1.5rem;text-align:center;position:relative}
+.hdr::before{content:'';position:fixed;top:0;left:0;right:0;height:220px;background:radial-gradient(ellipse 60% 180px at 50% -60px,rgba(79,127,255,.1),transparent 70%);pointer-events:none;z-index:0}
+.hdr-icon{font-size:2.6rem;display:block;animation:float 5s ease-in-out infinite;position:relative;z-index:1}
+.hdr-title{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:700;letter-spacing:-.03em;background:linear-gradient(135deg,#4f7fff,#9b5fff,#2dffb3);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;position:relative;z-index:1;line-height:1.1}
+.hdr-sub{font-size:.82rem;color:var(--text3);margin-top:.35rem;position:relative;z-index:1}
+.hdr-tags{display:flex;gap:.4rem;justify-content:center;flex-wrap:wrap;margin-top:.9rem;position:relative;z-index:1}
+.tag{font-size:.65rem;font-weight:600;padding:3px 9px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.tag-b{background:rgba(79,127,255,.14);color:var(--blue);border:1px solid rgba(79,127,255,.28)}
+.tag-g{background:rgba(45,255,179,.1);color:var(--green);border:1px solid rgba(45,255,179,.22)}
+.tag-p{background:rgba(155,95,255,.1);color:var(--purple);border:1px solid rgba(155,95,255,.22)}
+.tag-a{background:rgba(255,184,79,.1);color:var(--amber);border:1px solid rgba(255,184,79,.22)}
+
+/* ── Stats ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.65rem;margin-bottom:1.25rem}
+.sc{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:.85rem 1rem;text-align:center}
+.sc .n{font-family:var(--mono);font-size:1.5rem;font-weight:700;line-height:1}
+.sc .l{font-size:.66rem;color:var(--text3);margin-top:.28rem;text-transform:uppercase;letter-spacing:.06em}
+.sc.sg .n{color:var(--green)}.sc.sr .n{color:var(--red)}.sc.sa .n{color:var(--amber)}.sc.sb .n{color:var(--blue)}
+
+/* ── Tabs ── */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:1.4rem;overflow-x:auto}
+.tabs::-webkit-scrollbar{display:none}
+.tb{padding:.6rem 1.15rem;font-size:.83rem;font-weight:500;color:var(--text3);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:color .15s,border-color .15s;border-radius:6px 6px 0 0}
+.tb:hover{color:var(--text2);background:rgba(255,255,255,.025)}
+.tb.on{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ── Card ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:1.35rem 1.45rem;margin-bottom:.9rem;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(90,130,255,.14),transparent)}
+.card-sm{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.9rem 1rem}
+.ctitle{font-size:.67rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:1rem}
+
+/* ── Species Grid ── */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:.6rem}
+.sp{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:.95rem 1rem;cursor:pointer;text-align:left;position:relative;overflow:hidden;transition:all .18s ease;color:var(--text)}
+.sp:hover:not(.locked){border-color:var(--border2);background:var(--bg4);transform:translateY(-2px)}
+.sp.sa{border-color:var(--blue);background:rgba(79,127,255,.07);box-shadow:0 0 0 1px rgba(79,127,255,.2)}
+.sp.sb{border-color:var(--purple);background:rgba(155,95,255,.07);box-shadow:0 0 0 1px rgba(155,95,255,.2)}
+.sp.locked{opacity:.28;cursor:not-allowed;filter:grayscale(.6)}
+.sp-em{font-size:2rem;display:block;margin-bottom:.35rem;line-height:1}
+.sp-nm{font-size:.81rem;font-weight:600;line-height:1.25}
+.sp-st{font-size:.67rem;color:var(--text3);margin-top:.18rem}
+.sp-cr,.sp-en,.sp-vu{position:absolute;top:7px;right:7px;font-size:.59rem;font-weight:700;padding:2px 6px;border-radius:5px}
+.sp-cr{background:rgba(255,79,107,.2);color:var(--red)}.sp-en{background:rgba(255,184,79,.2);color:var(--amber)}.sp-vu{background:rgba(79,127,255,.2);color:var(--blue)}
+.sp-slot{position:absolute;bottom:7px;right:7px;font-size:.6rem;font-weight:700;padding:2px 7px;border-radius:5px}
+.sla{background:rgba(79,127,255,.25);color:var(--blue)}.slb{background:rgba(155,95,255,.25);color:var(--purple)}.slx{background:rgba(255,79,107,.2);color:var(--red)}
+
+/* ── Merge Panel ── */
+.mpanel{display:flex;align-items:center;gap:.9rem;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:1.1rem 1.3rem;margin-bottom:.9rem;flex-wrap:wrap}
+.mslot{flex:1;min-width:130px;background:var(--bg3);border:1.5px dashed var(--border2);border-radius:13px;padding:.95rem;text-align:center;min-height:84px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.28rem;transition:all .2s}
+.mslot.fa{border-style:solid;border-color:var(--blue);background:rgba(79,127,255,.06)}
+.mslot.fb{border-style:solid;border-color:var(--purple);background:rgba(155,95,255,.06)}
+.mslot-em{font-size:1.8rem;line-height:1}.mslot-nm{font-size:.8rem;font-weight:600}.mslot-ph{font-size:.74rem;color:var(--text3)}
+.plus{font-size:1.3rem;color:var(--text3);flex-shrink:0}
+.btn-merge{padding:.8rem 1.7rem;background:linear-gradient(135deg,var(--blue),var(--purple));border:none;border-radius:11px;color:#fff;font-family:var(--font);font-size:.9rem;font-weight:700;cursor:pointer;flex-shrink:0;transition:all .2s;letter-spacing:.01em}
+.btn-merge:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 30px rgba(79,127,255,.4)}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;padding:.72rem 1.4rem;border-radius:11px;font-size:.88rem;font-weight:600;transition:all .18s;white-space:nowrap;cursor:pointer}
+.btn:disabled{opacity:.35;pointer-events:none}
+.btn-p{background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;border:none}
+.btn-p:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 24px rgba(79,127,255,.38)}
+.btn-d{background:rgba(255,79,107,.1);color:var(--red);border:1px solid rgba(255,79,107,.25)}
+.btn-d:hover:not(:disabled){background:rgba(255,79,107,.18)}
+.btn-s{background:rgba(45,255,179,.1);color:var(--green);border:1px solid rgba(45,255,179,.25)}
+.btn-s:hover:not(:disabled){background:rgba(45,255,179,.18)}
+.btn-blk{width:100%;margin-top:.9rem}
+.btn-lg{padding:.88rem 1.6rem;font-size:.93rem;border-radius:13px}
+
+/* ── Divider ── */
+.div{display:flex;align-items:center;gap:.7rem;margin:1.15rem 0;color:var(--text3);font-size:.67rem;text-transform:uppercase;letter-spacing:.09em}
+.div::before,.div::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── Trait Bars ── */
+.tbars{display:flex;flex-direction:column;gap:.5rem}
+.trow{display:flex;align-items:center;gap:.7rem}
+.tlbl{font-size:.71rem;color:var(--text2);width:150px;flex-shrink:0}
+.ttrack{flex:1;height:6px;background:rgba(255,255,255,.055);border-radius:6px;overflow:hidden}
+.tfill{height:100%;border-radius:6px;transition:width 1.1s cubic-bezier(.16,1,.3,1)}
+.tval{font-size:.71rem;font-family:var(--mono);width:26px;text-align:right;flex-shrink:0}
+
+/* ── Hybrid header ── */
+.hhdr{display:flex;align-items:flex-start;gap:1.4rem;margin-bottom:1.4rem;flex-wrap:wrap}
+.hem{font-size:3.6rem;line-height:1;animation:float 4.5s ease-in-out infinite;flex-shrink:0}
+.hmeta{flex:1;min-width:0}
+.hnm{font-size:1.6rem;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.hpar{font-size:.79rem;color:var(--text3);margin-top:.28rem}
+.sring-row{display:flex;align-items:center;gap:1rem;margin-top:.8rem;flex-wrap:wrap}
+.sring{width:72px;height:72px;border-radius:50%;border:2.5px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;transition:box-shadow .3s}
+.sring:hover{box-shadow:0 0 22px currentColor}
+.sring .n{font-size:1.3rem;font-weight:700;font-family:var(--mono);line-height:1}
+.sring .l{font-size:.53rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin-top:2px}
+.sverdict{flex:1;font-size:.8rem;color:var(--text2);line-height:1.65}
+
+/* ── Narrative ── */
+.narr{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:0 13px 13px 0;padding:.95rem 1.2rem;font-size:.84rem;line-height:1.78;color:var(--text2);margin:1rem 0;white-space:pre-line}
+.narr.ng{border-left-color:var(--green)}.narr.na{border-left-color:var(--amber)}.narr.nr{border-left-color:var(--red)}
+
+/* ── Cycle header ── */
+.chdr{display:flex;align-items:center;gap:.85rem;margin-bottom:1.2rem}
+.cbadge{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.8rem;font-weight:700;flex-shrink:0}
+.c1{background:rgba(79,127,255,.2);color:var(--blue);border:1px solid rgba(79,127,255,.4)}
+.c2{background:rgba(255,184,79,.2);color:var(--amber);border:1px solid rgba(255,184,79,.4)}
+.c3{background:rgba(255,79,107,.2);color:var(--red);border:1px solid rgba(255,79,107,.4)}
+.ctit{font-size:1.05rem;font-weight:600}.csub{font-size:.77rem;color:var(--text3);margin-top:2px}
+
+/* ── Event card ── */
+.ecard{background:var(--bg3);border:1px solid rgba(255,79,107,.22);border-radius:13px;padding:.95rem 1.15rem;margin-bottom:.75rem}
+.elbl{font-size:.63rem;text-transform:uppercase;letter-spacing:.09em;color:var(--text3);margin-bottom:.35rem}
+.enm{font-size:1rem;font-weight:600}.edesc{font-size:.79rem;color:var(--text2);margin-top:.28rem;line-height:1.55}
+.edelta{font-size:.7rem;color:var(--red);margin-top:.38rem;font-weight:600}
+
+/* ── Resources ── */
+.rrow{display:flex;align-items:center;gap:.38rem;margin-bottom:1rem;flex-wrap:wrap}
+.rlbl{font-size:.7rem;color:var(--text3);margin-right:.15rem}
+.rpip{width:9px;height:9px;border-radius:50%;background:var(--blue);opacity:.8}
+.rpip.used{opacity:.13;background:var(--text3)}
+
+/* ── Choice cards ── */
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:.58rem;margin-top:.72rem}
+.cc{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:.88rem 1rem;cursor:pointer;text-align:left;transition:all .18s;color:var(--text)}
+.cc:hover:not(:disabled){border-color:var(--border2);background:var(--bg4);transform:translateY(-2px)}
+.cc.on{border-color:var(--blue);background:rgba(79,127,255,.08)}
+.cc:disabled{opacity:.35;pointer-events:none}
+.ci{font-size:1.3rem;display:block;margin-bottom:.32rem;line-height:1}
+.ctname{font-size:.83rem;font-weight:600}.ccdesc{font-size:.72rem;color:var(--text3);margin-top:.22rem;line-height:1.45}
+.ceff{font-size:.69rem;margin-top:.38rem;font-weight:600}
+.ep{color:var(--green)}.en2{color:var(--red)}.eam{color:var(--amber)}
+
+/* ── Predict row ── */
+.prow{display:flex;gap:.58rem;margin-top:.72rem;flex-wrap:wrap}
+.pb{flex:1;min-width:110px;padding:.82rem .6rem;border-radius:12px;border:1px solid var(--border);background:var(--bg3);cursor:pointer;text-align:center;transition:all .18s;color:var(--text)}
+.pb:hover{transform:translateY(-2px)}.pi{font-size:1.4rem;display:block;line-height:1}.pt{font-size:.77rem;font-weight:600;margin-top:.28rem}
+.pb.psy{border-color:var(--green);background:rgba(45,255,179,.08)}
+.pb.psd{border-color:var(--amber);background:rgba(255,184,79,.08)}
+.pb.pse{border-color:var(--red);background:rgba(255,79,107,.08)}
+
+/* ── Rate bar ── */
+.ratew{margin:1.1rem 0}
+.rateh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.42rem}
+.ratel{font-size:.74rem;color:var(--text2)}.ratep{font-size:1.12rem;font-weight:700;font-family:var(--mono);transition:color .3s}
+.ratetr{height:10px;background:rgba(255,255,255,.055);border-radius:10px;overflow:hidden}
+.ratefill{height:100%;border-radius:10px;transition:width 1.25s cubic-bezier(.16,1,.3,1)}
+.ratenote{font-size:.7rem;color:var(--text3);margin-top:.42rem;font-style:italic;line-height:1.5}
+
+/* ── Defects ── */
+.dcard{background:rgba(255,184,79,.05);border:1px solid rgba(255,184,79,.2);border-radius:12px;padding:.95rem 1.05rem;margin-bottom:.6rem}
+.dnm{font-size:.88rem;font-weight:600;color:var(--amber)}.ddesc{font-size:.79rem;color:var(--text2);margin-top:.32rem;line-height:1.55}.dimp{font-size:.7rem;color:var(--red);margin-top:.38rem;font-weight:600}
+
+/* ── Outcome banner ── */
+.obanner{border-radius:18px;padding:2.1rem 1.8rem;text-align:center;margin:.6rem 0}
+.ob-s{background:rgba(45,255,179,.07);border:1px solid rgba(45,255,179,.2);animation:pop .45s ease,glow 3s ease-in-out .5s infinite}
+.ob-d{background:rgba(255,184,79,.07);border:1px solid rgba(255,184,79,.2);animation:pop .45s ease}
+.ob-e{background:rgba(255,79,107,.07);border:1px solid rgba(255,79,107,.2);animation:pop .45s ease,shake .5s ease .45s}
+.oem{font-size:3rem;display:block;margin-bottom:.55rem;line-height:1}
+.otit{font-size:1.45rem;font-weight:700;letter-spacing:-.02em}
+.osub{font-size:.86rem;margin-top:.45rem;opacity:.75}
+.cg{color:var(--green)}.ca{color:var(--amber)}.cr{color:var(--red)}
+
+/* ── Hall grid ── */
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:.7rem}
+.hcard{background:var(--bg3);border:1px solid var(--border);border-radius:13px;padding:1.05rem;text-align:center;transition:border-color .18s,transform .18s}
+.hcard:hover{transform:translateY(-2px)}.hcard.hf{border-color:rgba(45,255,179,.22);background:rgba(45,255,179,.04)}
+.hcard.he{border-color:rgba(255,79,107,.22);background:rgba(255,79,107,.04)}
+.hem2{font-size:2rem;display:block;margin-bottom:.42rem;line-height:1}
+.hnm2{font-size:.82rem;font-weight:600}.hpar2{font-size:.69rem;color:var(--text3);margin-top:.18rem}.hscore{font-size:.74rem;font-family:var(--mono);margin-top:.42rem}
+
+/* ── Empty ── */
+.empty{text-align:center;padding:2.5rem 1rem;color:var(--text3)}
+.eic{font-size:2.4rem;display:block;margin-bottom:.7rem;opacity:.4}.etx{font-size:.87rem}
+
+/* ── Loading dots ── */
+.dots{display:inline-flex;gap:5px;margin-top:1.1rem}
+.dots span{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:dot 1.2s ease infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+
+/* ── Spinner ── */
+.spin{width:46px;height:46px;border:3px solid rgba(79,127,255,.18);border-top-color:var(--blue);border-radius:50%;animation:spin .75s linear infinite;margin:0 auto 1.1rem}
+
+/* ── Warn ── */
+.warn{background:rgba(255,184,79,.08);border:1px solid rgba(255,184,79,.24);border-radius:10px;padding:.72rem 1rem;font-size:.8rem;color:var(--amber);margin-bottom:.9rem;line-height:1.6}
+.extinct-warn{background:rgba(255,79,107,.07);border:1px solid rgba(255,79,107,.2);border-radius:13px;padding:.95rem 1.15rem;font-size:.83rem;color:var(--red);text-align:center;margin-top:.5rem}
+
+/* ── API input ── */
+.apiinp{width:100%;padding:.72rem 1rem;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;color:var(--text);font-family:var(--mono);font-size:.81rem;outline:none;transition:border-color .18s,box-shadow .18s}
+.apiinp:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(79,127,255,.15)}
+.apiinp::placeholder{color:var(--text3)}
+.astat{font-size:.77rem;margin-top:.6rem;display:flex;align-items:center;gap:.38rem}
+.astat.on{color:var(--green)}.astat.off{color:var(--text3)}
+
+/* ── History rows ── */
+.hrow{display:flex;align-items:center;gap:.7rem;padding:.62rem 0;border-bottom:1px solid var(--border);font-size:.79rem}
+.hrow:last-child{border-bottom:none}
+.hrow-info{flex:1;min-width:0}.hrow-nm{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow-dt{font-size:.7rem;color:var(--text3);margin-top:1px}
+.lrow{padding:.58rem 0;border-bottom:1px solid var(--border)}.lrow:last-child{border-bottom:none}
+.lnm{font-size:.79rem;font-weight:500}.ldt{font-size:.7rem;color:var(--text3);margin-top:2px}
+
+@media(max-width:640px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .hhdr{flex-direction:column;gap:.75rem}
+  .mpanel{flex-direction:column}
+}
+@media(max-width:480px){
+  #wrap{padding:0 .75rem 5rem}
+  .cgrid{grid-template-columns:1fr 1fr}
+  .hgrid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header class="hdr anim-up">
+    <span class="hdr-icon">🧬</span>
+    <h1 class="hdr-title">DNA Merge</h1>
+    <p class="hdr-sub">Species Survival Engine — Save the Endangered</p>
+    <div class="hdr-tags">
+      <span class="tag tag-b">🌍 12 Real Species</span>
+      <span class="tag tag-g">💾 LocalStorage Save</span>
+      <span class="tag tag-p">🤖 AI Narration</span>
+      <span class="tag tag-a">⚗️ 3-Cycle Sim</span>
+    </div>
+  </header>
+
+  <div class="stats anim-up s1" id="stats"></div>
+
+  <nav class="tabs anim-up s2" id="tabs">
+    <button class="tb on" data-v="lab">🧬 Gene Lab</button>
+    <button class="tb" data-v="records">📋 Records</button>
+    <button class="tb" data-v="history">📜 History</button>
+    <button class="tb" data-v="settings">⚙️ Settings</button>
+  </nav>
+
+  <main id="main"></main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════
+const SPECIES = [
+  {id:'snow-leopard',   emoji:'🐆',name:'Snow Leopard',      status:'Vulnerable',         iucn:'VU',
+   traits:{adaptability:78,immune:65,reproduction:35,climate:82,dietary:60,size:55,social:30,camouflage:92}},
+  {id:'amur-leopard',  emoji:'🐈',name:'Amur Leopard',      status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:62,immune:58,reproduction:28,climate:75,dietary:55,size:50,social:25,camouflage:88}},
+  {id:'axolotl',       emoji:'🦎',name:'Axolotl',           status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:70,immune:88,reproduction:85,climate:45,dietary:72,size:20,social:40,camouflage:55}},
+  {id:'vaquita',       emoji:'🐬',name:'Vaquita',           status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:30,immune:55,reproduction:20,climate:50,dietary:65,size:38,social:60,camouflage:70}},
+  {id:'javan-rhino',   emoji:'🦏',name:'Javan Rhino',       status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:40,immune:72,reproduction:22,climate:60,dietary:80,size:95,social:20,camouflage:30}},
+  {id:'sunda-tiger',   emoji:'🐯',name:'Sunda Tiger',       status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:65,immune:70,reproduction:40,climate:68,dietary:85,size:80,social:15,camouflage:80}},
+  {id:'kakapo',        emoji:'🦜',name:'Kakapo',            status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:35,immune:60,reproduction:15,climate:55,dietary:75,size:42,social:45,camouflage:65}},
+  {id:'mtn-gorilla',   emoji:'🦍',name:'Mountain Gorilla',  status:'Endangered',           iucn:'EN',
+   traits:{adaptability:55,immune:68,reproduction:30,climate:58,dietary:78,size:88,social:95,camouflage:25}},
+  {id:'pangolin',      emoji:'🐾',name:'Chinese Pangolin',  status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:50,immune:62,reproduction:35,climate:62,dietary:70,size:35,social:15,camouflage:75}},
+  {id:'sea-turtle',    emoji:'🐢',name:'Leatherback Turtle',status:'Vulnerable',           iucn:'VU',
+   traits:{adaptability:68,immune:58,reproduction:70,climate:72,dietary:60,size:85,social:10,camouflage:40}},
+  {id:'saola',         emoji:'🦌',name:'Saola',             status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:42,immune:55,reproduction:28,climate:55,dietary:72,size:55,social:35,camouflage:80}},
+  {id:'orangutan',     emoji:'🦧',name:'Sumatran Orangutan',status:'Critically Endangered',iucn:'CR',
+   traits:{adaptability:60,immune:65,reproduction:22,climate:65,dietary:82,size:72,social:55,camouflage:35}},
+];
+
+const TMETA = {
+  adaptability: {label:'🌱 Adaptability',     color:'#4f7fff'},
+  immune:       {label:'🛡️ Immune Strength',   color:'#2dffb3'},
+  reproduction: {label:'🥚 Reproduction Rate', color:'#9b5fff'},
+  climate:      {label:'🌡️ Climate Tolerance', color:'#4fffdf'},
+  dietary:      {label:'🍃 Dietary Flex',       color:'#ffb84f'},
+  size:         {label:'📐 Size Efficiency',    color:'#ff8f4f'},
+  social:       {label:'🤝 Social Behavior',    color:'#ff4fb8'},
+  camouflage:   {label:'👁️ Camouflage',         color:'#7bff4f'},
+};
+
+const EVENTS = [
+  {id:'habitat', emoji:'🌲',name:'Habitat Fragmentation', desc:'Urban sprawl has destroyed 40% of the hybrid\'s primary territory.',       impact:-15},
+  {id:'disease', emoji:'🦠',name:'Disease Outbreak',       desc:'A novel pathogen is sweeping rapidly through the regional ecosystem.',      impact:-20},
+  {id:'predator',emoji:'🐍',name:'Invasive Predator',      desc:'A dominant apex predator has entered and destabilised the food web.',       impact:-12},
+  {id:'drought', emoji:'☀️',name:'Severe Drought',         desc:'Three consecutive dry seasons have depleted water and food availability.',  impact:-18},
+  {id:'human',   emoji:'🏭',name:'Human Encroachment',     desc:'Poaching networks and agricultural expansion are closing in rapidly.',      impact:-16},
+  {id:'food',    emoji:'🔗',name:'Food Chain Collapse',    desc:'The hybrid\'s primary prey species has gone locally extinct.',               impact:-22},
+  {id:'pollution',emoji:'☣️',name:'Water Pollution',       desc:'Industrial runoff has contaminated the primary water sources.',             impact:-14},
+  {id:'flood',   emoji:'🌊',name:'Extreme Flood Event',    desc:'Record-breaking floods devastated the breeding grounds completely.',        impact:-17},
+  {id:'fire',    emoji:'🔥',name:'Wildfire Season',        desc:'Catastrophic fires swept through 60% of the available habitat range.',     impact:-19},
+];
+
+const RESOURCES = [
+  {id:'habitat',  emoji:'🏕️',name:'Protected Habitat Zone', desc:'Secure 500km² from all human activity.',           effect:'+18 survival bonus',  bonus:18,type:'survival'},
+  {id:'food',     emoji:'🍖',name:'Emergency Food Supply',   desc:'Airlifted provisions through the crisis period.',   effect:'+12 survival bonus',  bonus:12,type:'survival'},
+  {id:'genefix',  emoji:'💉',name:'Gene Therapy Token',      desc:'Experimental lab-grade defect targeting.',          effect:'Unlocks 60% defect cure in Cycle 2',bonus:8,type:'cure'},
+  {id:'patrol',   emoji:'🛡️',name:'Anti-Poaching Patrol',   desc:'Deploy rangers with drones across the territory.',  effect:'+15 survival bonus',  bonus:15,type:'survival'},
+  {id:'vaccine',  emoji:'🧪',name:'Disease Inoculation',     desc:'Custom vaccine targeting regional pathogens.',       effect:'+22 vs disease events',bonus:22,type:'survival'},
+  {id:'shelter',  emoji:'⛺',name:'Climate Shelter Network', desc:'Microclimatic refugia across the habitat.',          effect:'+20 survival bonus',  bonus:20,type:'survival'},
+];
+
+const DEFECT_POOL = [
+  {name:'Recessive Immune Disorder',    desc:'HLA antigen mismatch creates an autoimmune cascade that steadily weakens host defences.',    impact:'Immune strength -25 in Cycle 3.'},
+  {name:'Partial Infertility',          desc:'Chromosomal mismatch at key loci reduces viable offspring by 50% per generation.',          impact:'Reproduction rate halved permanently.'},
+  {name:'Behavioural Incompatibility',  desc:'Conflicting neurological pheromone systems prevent natural mating behaviours from triggering.',impact:'Social score -30; breeding nearly impossible.'},
+  {name:'Organ Malformation',           desc:'Hepatic and renal systems show structural defects from mismatched developmental genes.',    impact:'Lifespan -40%; metabolic efficiency drops sharply.'},
+  {name:'Thermal Dysregulation',        desc:'Conflicting thermoregulatory genes produce dangerous swings in core body temperature.',     impact:'Climate tolerance -28; drought events become lethal.'},
+  {name:'Neurological Stress Response', desc:'Cross-species neural wiring creates extreme anxiety responses to normal environmental stimuli.',impact:'Adaptability -22 under high-pressure events.'},
+];
+
+// ═══════════════════════════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════════════════════════
+const LS = {
+  get(k)    { try{return JSON.parse(localStorage.getItem('dna_'+k))}catch{return null} },
+  set(k,v)  { try{localStorage.setItem('dna_'+k,JSON.stringify(v))}catch{} },
+  clear()   { Object.keys(localStorage).filter(k=>k.startsWith('dna_')).forEach(k=>localStorage.removeItem(k)) },
+};
+
+function loadState() {
+  return {
+    hybrids:    LS.get('hybrids')    || [],
+    extinctions:LS.get('extinctions')|| [],
+    fame:       LS.get('fame')       || [],
+    resources:  LS.get('resources')  ?? 5,
+    predictions:LS.get('predictions')|| [],
+    log:        LS.get('log')        || [],
+  };
+}
+function saveState(s) {
+  LS.set('hybrids',    s.hybrids);
+  LS.set('extinctions',s.extinctions);
+  LS.set('fame',       s.fame);
+  LS.set('resources',  s.resources);
+  LS.set('predictions',s.predictions);
+  LS.set('log',        s.log);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API
+// ═══════════════════════════════════════════════════════════════
+async function callAPI(userPrompt, sysPrompt, maxTokens=800) {
+  const key = LS.get('apikey') || '';
+  if (!key) throw new Error('NO_KEY');
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:maxTokens,
+      system: sysPrompt || 'You are a conservation biology AI. Reply in plain text only — no markdown, asterisks, or headers.',
+      messages:[{role:'user',content:userPrompt}]})
+  });
+  const d = await res.json();
+  if(d.error) throw new Error(d.error.message);
+  return d.content.map(b=>b.text||'').join('');
+}
+
+function hasKey() { return !!(LS.get('apikey')); }
+
+// Fallbacks (no API key)
+function fbHybrid(a,b,score) {
+  const name = `${a.name.split(' ').pop()}-${b.name.split(' ').pop()} Hybrid`;
+  return {
+    name,
+    emoji: a.emoji,
+    bio: `The ${name} inherits a remarkable blend of traits from the ${a.name} and ${b.name}. With a viability score of ${score}/100, this hybrid faces ${score>=65?'a promising yet uncertain':score>=40?'a challenging and precarious':'a deeply perilous'} path. Its fate depends entirely on the choices made across the next three cycles.`,
+    defects: ['Immune incompatibility — HLA antigen mismatch between parent lineages creates chronic inflammatory risk','Reproductive instability — chromosomal pairing errors reduce viable offspring rate by 30–50%'],
+  };
+}
+function fbNarrative(hname, ename, outcome, cycle) {
+  const m = {
+    survive:`Cycle ${cycle}: Despite the ${ename} crisis, the ${hname} demonstrates remarkable inherited resilience. The population weathers the pressure and stabilises.`,
+    damage: `Cycle ${cycle}: The ${ename} takes a heavy toll on the ${hname}. The population survives but shows clear genetic stress — weaker individuals are lost.`,
+    extinct:`Cycle ${cycle}: The ${ename} delivers a fatal blow. The genetic weaknesses of the ${hname}, combined with the environmental pressure, prove unsurvivable.`,
+  };
+  return m[outcome] || m.survive;
+}
+function fbDefects(seeds) {
+  return seeds.map(d=>{const p=d.split('—');return{name:(p[0]||'').trim(),desc:(p[1]||'A fundamental genetic mismatch between parent species creates systemic biological stress.').trim(),impact:'Reduces long-term survival probability by 15–25 points.'};});
+}
+function fbVerdict(hname,outcome) {
+  if(outcome==='survive') return `The ${hname} has defied the odds and established a breeding population, securing a unique ecological niche for generations to come.`;
+  if(outcome==='damage')  return `The ${hname} persists in a fragile, reduced state. Without further intervention, long-term viability remains deeply uncertain.`;
+  return `The ${hname} has gone extinct. The genetic incompatibilities between its parent lineages proved insurmountable. This unique combination is lost forever.`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// GAME STATE
+// ═══════════════════════════════════════════════════════════════
+let ST = loadState();
+let VIEW = 'lab';
+
+let SEL_A = null, SEL_B = null;
+let HYBRID = null;
+let EVENT  = null;
+let RES    = null;
+let PRED   = null;
+let PHASE  = 'select'; // select|merging|hybrid|cycle1|cycling|defects|cycle2|cycle3|result
+let DEFECTS = [];
+let NARR    = '';
+let FINAL_NARR = '';
+let HAS_GENETX = false;
+let DEF_PENALTY = 0;
+
+function resetSession() {
+  SEL_A=SEL_B=HYBRID=EVENT=RES=PRED=null;
+  PHASE='select'; DEFECTS=[]; NARR=''; FINAL_NARR='';
+  HAS_GENETX=false; DEF_PENALTY=0;
+}
+
+function rndEvent(excludeId=null) {
+  const pool = excludeId ? EVENTS.filter(e=>e.id!==excludeId) : EVENTS;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function rndDefects(n=2) {
+  return [...DEFECT_POOL].sort(()=>Math.random()-.5).slice(0,n);
+}
+function blendTraits(a,b) {
+  const t={};
+  for(const k of Object.keys(a.traits)){
+    t[k]=Math.max(5,Math.min(100,Math.round((a.traits[k]*.5+b.traits[k]*.5)+(Math.random()*14-7))));
+  }
+  return t;
+}
+function avgScore(traits) {
+  const v=Object.values(traits);
+  return Math.round(v.reduce((a,b)=>a+b,0)/v.length);
+}
+function survivalRate(extraPenalty=0) {
+  if(!HYBRID||!EVENT) return 0;
+  const r=HYBRID.score+EVENT.impact+(RES?RES.bonus:0)-DEF_PENALTY-extraPenalty;
+  return Math.max(5,Math.min(96,Math.round(r)));
+}
+function rollOutcome(rate) {
+  const r=Math.random()*100;
+  if(r<rate*.55) return 'survive';
+  if(r<rate)     return 'damage';
+  return 'extinct';
+}
+function scoreColor(n) {
+  return n>=65?'var(--green)':n>=38?'var(--amber)':'var(--red)';
+}
+function isExtinct(a,b) {
+  return ST.extinctions.some(e=>(e.pA===a&&e.pB===b)||(e.pA===b&&e.pB===a));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER ENGINE
+// ═══════════════════════════════════════════════════════════════
+function render() {
+  renderStats();
+  renderMain();
+}
+
+function renderStats() {
+  const cor=ST.predictions.filter(p=>p.ok).length;
+  const acc=ST.predictions.length?Math.round(cor/ST.predictions.length*100):0;
+  document.getElementById('stats').innerHTML=`
+    <div class="sc sg anim-up"><div class="n">${ST.fame.length}</div><div class="l">🏆 Established</div></div>
+    <div class="sc sr anim-up s1"><div class="n">${ST.extinctions.length}</div><div class="l">💀 Extinct</div></div>
+    <div class="sc sa anim-up s2"><div class="n">${ST.resources}</div><div class="l">🧪 Resources</div></div>
+    <div class="sc sb anim-up s3"><div class="n">${acc}%</div><div class="l">🔮 Accuracy</div></div>`;
+}
+
+function renderMain() {
+  const m=document.getElementById('main');
+  m.innerHTML='';
+  if(VIEW==='records')  { renderRecords(m);  return; }
+  if(VIEW==='history')  { renderHistory(m);  return; }
+  if(VIEW==='settings') { renderSettings(m); return; }
+  // Lab
+  if(PHASE==='select')   renderSelect(m);
+  else if(PHASE==='merging') renderLoading(m,'Splicing DNA strands…','AI is generating your hybrid species');
+  else if(PHASE==='hybrid')  renderHybrid(m);
+  else if(PHASE==='cycle1')  renderCycle1(m);
+  else if(PHASE==='cycling') renderLoading(m,'Simulating survival…','AI is narrating the cycle outcome');
+  else if(PHASE==='defects') renderLoading(m,'Analysing genetic defects…','AI is diagnosing latent mutations');
+  else if(PHASE==='cycle2')  renderCycle2(m);
+  else if(PHASE==='cycle3')  renderCycle3(m);
+  else if(PHASE==='result')  renderResult(m);
+}
+
+// ── Select ────────────────────────────────────────────────────
+function renderSelect(m) {
+  const extCombo = SEL_A&&SEL_B&&isExtinct(SEL_A.id,SEL_B.id);
+  const same     = SEL_A&&SEL_B&&SEL_A.id===SEL_B.id;
+  const canMerge = SEL_A&&SEL_B&&!extCombo&&!same;
+
+  const cards = SPECIES.map(s=>{
+    const isA=SEL_A?.id===s.id, isB=SEL_B?.id===s.id;
+    const wouldExt=!isA&&!isB&&SEL_A&&isExtinct(SEL_A.id,s.id);
+    const cls=isA?'sa':isB?'sb':wouldExt?'locked':'';
+    const badgeCls=s.iucn==='CR'?'sp-cr':s.iucn==='EN'?'sp-en':'sp-vu';
+    const slotBadge=isA?`<span class="sp-slot sla">A</span>`:isB?`<span class="sp-slot slb">B</span>`:wouldExt?`<span class="sp-slot slx">🔒</span>`:'';
+    return `<button class="sp ${cls}" onclick="${wouldExt?'':'pick(\''+s.id+'\')'}" title="${s.name}">
+      <span class="${badgeCls}">${s.iucn}</span>
+      <span class="sp-em">${s.emoji}</span>
+      <div class="sp-nm">${s.name}</div>
+      <div class="sp-st">${s.status}</div>
+      ${slotBadge}
+    </button>`;
+  }).join('');
+
+  const slotA=SEL_A?`<span class="mslot-em">${SEL_A.emoji}</span><div class="mslot-nm">${SEL_A.name}</div>`:`<div class="mslot-ph">Select Species A</div>`;
+  const slotB=SEL_B?`<span class="mslot-em">${SEL_B.emoji}</span><div class="mslot-nm">${SEL_B.name}</div>`:`<div class="mslot-ph">Select Species B</div>`;
+  const mergeLabel=extCombo?'🔒 Extinct Combo':same?'⚠️ Same Species':'🧬 Merge DNA →';
+
+  m.innerHTML=`
+    <div class="card anim-up">
+      <div class="ctitle">Step 1 — Select Parent Species A &amp; B</div>
+      ${!hasKey()?`<div class="warn">⚠️ No API key — the game runs with built-in descriptions. Add your Anthropic key in <strong>⚙️ Settings</strong> for full AI narration.</div>`:''}
+      <div class="sgrid">${cards}</div>
+    </div>
+    <div class="mpanel anim-up s2">
+      <div class="mslot ${SEL_A?'fa':''}">${slotA}</div>
+      <div class="plus">+</div>
+      <div class="mslot ${SEL_B?'fb':''}">${slotB}</div>
+      <button class="btn-merge" ${canMerge?'':'disabled'} onclick="startMerge()">${mergeLabel}</button>
+    </div>
+    ${extCombo?`<div class="extinct-warn anim-up">💀 This combination has already gone extinct and is permanently sealed from the gene pool.</div>`:''}`;
+}
+
+// ── Loading ───────────────────────────────────────────────────
+function renderLoading(m,main,sub) {
+  m.innerHTML=`<div class="card anim-up" style="text-align:center;padding:3rem 1.5rem">
+    <div class="spin"></div>
+    <div style="font-size:1rem;font-weight:500">${main}</div>
+    <div style="font-size:.82rem;color:var(--text3);margin-top:.35rem">${sub}</div>
+    <div class="dots" style="justify-content:center"><span></span><span></span><span></span></div>
+  </div>`;
+}
+
+// ── Hybrid ────────────────────────────────────────────────────
+function renderHybrid(m) {
+  const h=HYBRID, sc=h.score, col=scoreColor(sc);
+  const verdict=sc>=70?'✅ Strong genetic compatibility — high survival potential.':sc>=45?'⚠️ Borderline viable — multiple risk factors present.':'❌ Poor genetic compatibility — extinction risk is critical.';
+  const bars=Object.entries(h.traits).map(([k,v])=>{
+    const meta=TMETA[k];
+    return `<div class="trow">
+      <div class="tlbl">${meta.label}</div>
+      <div class="ttrack"><div class="tfill" style="width:${v}%;background:${meta.color}"></div></div>
+      <div class="tval" style="color:${meta.color}">${v}</div>
+    </div>`;
+  }).join('');
+
+  m.innerHTML=`<div class="card anim-up">
+    <div class="ctitle">🎉 Hybrid Species Generated</div>
+    <div class="hhdr">
+      <div class="hem anim-float">${h.emoji}</div>
+      <div class="hmeta">
+        <div class="hnm">${h.name}</div>
+        <div class="hpar">🧬 ${h.parentA.emoji} ${h.parentA.name} × ${h.parentB.emoji} ${h.parentB.name}</div>
+        <div class="sring-row">
+          <div class="sring" style="border-color:${col}">
+            <div class="n" style="color:${col}">${sc}</div>
+            <div class="l">Viability</div>
+          </div>
+          <div class="sverdict">${verdict}</div>
+        </div>
+      </div>
+    </div>
+    ${h.bio?`<div class="narr">${h.bio}</div>`:''}
+    <div class="div">Trait Profile</div>
+    <div class="tbars">${bars}</div>
+    <div class="div">Hidden Genetic Defects</div>
+    <div class="card-sm" style="text-align:center;padding:1.2rem">
+      <div style="font-size:1.3rem;margin-bottom:.35rem">🔒</div>
+      <div style="font-size:.79rem;color:var(--text3)">${h.rawDefects.length} genetic defect${h.rawDefects.length!==1?'s':''} sealed — manifest in Cycle 2</div>
+    </div>
+    <button class="btn btn-p btn-blk btn-lg" onclick="goCycle1()">Begin Cycle 1 — First Generation →</button>
+  </div>`;
+}
+
+// ── Cycle 1 ───────────────────────────────────────────────────
+function renderCycle1(m) {
+  const rate=survivalRate(), col=scoreColor(rate);
+  const pips=Array.from({length:10},(_,i)=>`<div class="rpip${i>=ST.resources?' used':''}"></div>`).join('');
+  const resCrds=RESOURCES.map(r=>`
+    <button class="cc${RES?.id===r.id?' on':''}" onclick="pickRes('${r.id}')">
+      <span class="ci">${r.emoji}</span>
+      <div class="ctname">${r.name}</div>
+      <div class="ccdesc">${r.desc}</div>
+      <div class="ceff ep">${r.effect}</div>
+    </button>`).join('');
+
+  m.innerHTML=`<div class="card anim-up">
+    <div class="chdr">
+      <div class="cbadge c1">C1</div>
+      <div><div class="ctit">Cycle 1 — First Generation</div><div class="csub">${HYBRID.name} enters the wild for the first time</div></div>
+    </div>
+    <div class="rrow"><span class="rlbl">🧪 Resources:</span>${pips}${ST.resources===0?'<span style="color:var(--red);font-size:.7rem;margin-left:4px">Depleted</span>':''}</div>
+    <div class="ecard">
+      <div class="elbl">⚡ Environmental Pressure</div>
+      <div class="enm">${EVENT.emoji} ${EVENT.name}</div>
+      <div class="edesc">${EVENT.desc}</div>
+      <div class="edelta">Score modifier: ${EVENT.impact}</div>
+    </div>
+    <div class="div">Choose a Conservation Resource</div>
+    ${ST.resources===0?`<div class="warn" style="margin-top:0">⚠️ No resources remaining — facing this cycle unaided.</div>`:''}
+    <div class="cgrid">${resCrds}</div>
+    <div class="div">Your Prediction</div>
+    <div style="font-size:.82rem;color:var(--text2);line-height:1.65">
+      Given <strong style="color:var(--text)">${HYBRID.name}</strong>'s traits and the
+      <strong style="color:var(--text)">${EVENT.name}</strong> event — what do you predict?
+    </div>
+    ${predButtons(PRED)}
+    ${rateBar(rate,col)}
+    <button class="btn btn-p btn-blk btn-lg" onclick="runCycle1()" ${!PRED?'disabled':''}>
+      ${!PRED?'Make a prediction first':'Run Cycle 1 →'}
+    </button>
+  </div>`;
+}
+
+// ── Cycle 2 ───────────────────────────────────────────────────
+function renderCycle2(m) {
+  const rate=survivalRate(20), col=scoreColor(rate);
+  const txOk=HAS_GENETX&&ST.resources>=1;
+  const defHtml=DEFECTS.map(d=>`<div class="dcard anim-up">
+    <div class="dnm">⚠️ ${d.name}</div>
+    <div class="ddesc">${d.desc}</div>
+    <div class="dimp">🔻 ${d.impact}</div>
+  </div>`).join('');
+
+  m.innerHTML=`<div class="card anim-up">
+    <div class="chdr">
+      <div class="cbadge c2">C2</div>
+      <div><div class="ctit">Cycle 2 — Defect Revelation</div><div class="csub">Hidden genetic flaws are now manifesting in the population</div></div>
+    </div>
+    ${NARR?`<div class="narr na">${NARR}</div>`:''}
+    <div class="div">Genetic Defects Revealed</div>
+    ${defHtml}
+    <div class="div">Your Response</div>
+    <div class="cgrid">
+      <button class="cc" onclick="defectResponse('accept')">
+        <span class="ci">😤</span><div class="ctname">Accept Defects</div>
+        <div class="ccdesc">Species survives in weakened state into Cycle 3.</div>
+        <div class="ceff eam">Continues with −20 score modifier</div>
+      </button>
+      <button class="cc" ${txOk?'':'disabled'} onclick="defectResponse('therapy')">
+        <span class="ci">💉</span><div class="ctname">Gene Therapy</div>
+        <div class="ccdesc">60% chance to cure one defect. Costs 1 resource.</div>
+        <div class="ceff ${txOk?'ep':'en2'}">${txOk?'Available — uses 1 resource':'🔒 Requires Gene Therapy token'}</div>
+      </button>
+      <button class="cc" onclick="defectResponse('cull')">
+        <span class="ci">☠️</span><div class="ctname">Cull the Line</div>
+        <div class="ccdesc">Voluntary extinction. Recovers +1 resource.</div>
+        <div class="ceff en2">Permanent extinction — resources preserved</div>
+      </button>
+      <button class="cc" onclick="defectResponse('wild')">
+        <span class="ci">🎲</span><div class="ctname">Release into Wild</div>
+        <div class="ccdesc">High-risk gamble — nature decides the outcome.</div>
+        <div class="ceff en2">±30% random variance · may trigger extinction</div>
+      </button>
+    </div>
+    <div class="div">Projected Cycle 3 Rate (with defect penalties)</div>
+    ${rateBar(rate,col)}
+  </div>`;
+}
+
+// ── Cycle 3 ───────────────────────────────────────────────────
+function renderCycle3(m) {
+  const rate=survivalRate(), col=scoreColor(rate);
+  m.innerHTML=`<div class="card anim-up">
+    <div class="chdr">
+      <div class="cbadge c3">C3</div>
+      <div><div class="ctit">Cycle 3 — Establishment or Extinction</div><div class="csub">The final verdict for ${HYBRID.name}</div></div>
+    </div>
+    ${NARR?`<div class="narr na">${NARR}</div>`:''}
+    <div class="ecard">
+      <div class="elbl">⚡ Final Environmental Pressure</div>
+      <div class="enm">${EVENT.emoji} ${EVENT.name}</div>
+      <div class="edesc">${EVENT.desc}</div>
+      <div class="edelta">Score modifier: ${EVENT.impact}</div>
+    </div>
+    <div class="div">Final Prediction</div>
+    <div style="font-size:.82rem;color:var(--text2);line-height:1.65">
+      Will <strong style="color:var(--text)">${HYBRID.name}</strong> establish a breeding population and survive?
+    </div>
+    ${predButtons(PRED, true)}
+    ${rateBar(rate,col)}
+    <button class="btn btn-p btn-blk btn-lg" onclick="runCycle3()" ${!PRED?'disabled':''}>
+      ${!PRED?'Make a final prediction':'Resolve Final Cycle →'}
+    </button>
+  </div>`;
+}
+
+// ── Result ────────────────────────────────────────────────────
+function renderResult(m) {
+  const out=HYBRID.outcome;
+  const cor=ST.predictions.filter(p=>p.ok).length;
+  const acc=ST.predictions.length?Math.round(cor/ST.predictions.length*100):0;
+  const banCls=out==='survive'?'ob-s':out==='damage'?'ob-d':'ob-e';
+  const em=out==='survive'?'🎉':out==='damage'?'⚠️':'💀';
+  const tit=out==='survive'?`${HYBRID.name} Has Established!`:out==='damage'?`${HYBRID.name} — Fragile Survival`:`${HYBRID.name} Is Extinct`;
+  const sub=out==='survive'?'🏆 Added to Hall of Fame. This hybrid secures its place in the wild.':out==='damage'?'⚠️ Survives in reduced form. The future remains deeply uncertain.':'💀 This DNA combination is permanently sealed from the gene pool.';
+  const tcls=out==='survive'?'cg':out==='damage'?'ca':'cr';
+  const ncls=out==='survive'?'ng':out==='damage'?'na':'nr';
+  const recent=ST.predictions.slice(-6).reverse().map(p=>p.ok?'✅':'❌').join(' ');
+
+  m.innerHTML=`
+    <div class="obanner ${banCls}">
+      <span class="oem">${em}</span>
+      <div class="otit ${tcls}">${tit}</div>
+      <div class="osub">${sub}</div>
+    </div>
+    ${FINAL_NARR?`<div class="narr ${ncls} anim-up s1">${FINAL_NARR}</div>`:''}
+    <div class="card anim-up s2">
+      <div class="ctitle">📊 Prediction Record</div>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+        <div style="font-size:1.1rem;letter-spacing:2px">${recent}</div>
+        <div style="font-size:.81rem;color:var(--text2)">Overall accuracy: <strong style="color:var(--text)">${acc}%</strong> (${ST.predictions.length} total)</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.25rem">
+      <button class="btn btn-p btn-lg" style="flex:1;min-width:170px" onclick="resetSession();render()">🧬 Create Another Hybrid</button>
+      ${out==='extinct'?`<button class="btn btn-d" style="flex:1;min-width:170px" onclick="switchView('records')">💀 View Extinctions</button>`:`<button class="btn btn-s" style="flex:1;min-width:170px" onclick="switchView('records')">🏆 Hall of Fame</button>`}
+    </div>`;
+}
+
+// ── Records ───────────────────────────────────────────────────
+function renderRecords(m) {
+  const fCards=ST.fame.length
+    ?ST.fame.map(h=>`<div class="hcard hf">
+        <span class="hem2">${h.emoji}</span>
+        <div class="hnm2">${h.name}</div>
+        <div class="hpar2">${h.pAn} × ${h.pBn}</div>
+        <div class="hscore" style="color:var(--green)">Score: ${h.score}</div>
+      </div>`).join('')
+    :`<div class="empty"><span class="eic">🏆</span><div class="etx">No established hybrids yet</div></div>`;
+  const eCards=ST.extinctions.length
+    ?ST.extinctions.map(e=>`<div class="hcard he">
+        <span class="hem2">${e.emoji||'💀'}</span>
+        <div class="hnm2">${e.name}</div>
+        <div class="hpar2">${e.pAn} × ${e.pBn}</div>
+        <div class="hscore" style="color:var(--red)">🔒 Permanently Extinct</div>
+      </div>`).join('')
+    :`<div class="empty"><span class="eic">💀</span><div class="etx">No extinctions recorded yet</div></div>`;
+  m.innerHTML=`
+    <div class="card anim-up"><div class="ctitle">🏆 Hall of Fame — Established Populations (${ST.fame.length})</div><div class="hgrid">${fCards}</div></div>
+    <div class="card anim-up s2"><div class="ctitle">💀 Hall of Extinction — Permanently Lost (${ST.extinctions.length})</div><div class="hgrid">${eCards}</div></div>`;
+}
+
+// ── History ───────────────────────────────────────────────────
+function renderHistory(m) {
+  const cor=ST.predictions.filter(p=>p.ok).length;
+  const acc=ST.predictions.length?Math.round(cor/ST.predictions.length*100):0;
+  const pRows=ST.predictions.length
+    ?[...ST.predictions].reverse().map(p=>`<div class="hrow">
+        <span>${p.ok?'✅':'❌'}</span>
+        <div class="hrow-info">
+          <div class="hrow-nm">${p.name} — Cycle ${p.cycle}</div>
+          <div class="hrow-dt">Predicted: ${p.pred} · Actual: ${p.actual}</div>
+        </div>
+      </div>`).join('')
+    :`<div class="empty"><span class="eic">🔮</span><div class="etx">No predictions yet</div></div>`;
+  const lRows=ST.log.length
+    ?[...ST.log].reverse().slice(0,20).map(l=>`<div class="lrow">
+        <div class="lnm">${l.name} — Cycle ${l.cycle}</div>
+        <div class="ldt">${l.event} → <strong style="color:${l.out==='survive'?'var(--green)':l.out==='damage'?'var(--amber)':'var(--red)'}">${l.out}</strong>${l.res&&l.res!=='None'?' · '+l.res:''}</div>
+      </div>`).join('')
+    :`<div class="empty"><span class="eic">📋</span><div class="etx">No cycles played yet</div></div>`;
+  m.innerHTML=`
+    <div class="card anim-up">
+      <div class="ctitle">🔮 Prediction History (${ST.predictions.length} total)</div>
+      ${ST.predictions.length?`<div class="ratew" style="margin-bottom:1rem">
+        <div class="rateh"><span class="ratel">Overall accuracy</span><span class="ratep" style="color:${scoreColor(acc)}">${acc}%</span></div>
+        <div class="ratetr"><div class="ratefill" style="width:${acc}%;background:${scoreColor(acc)}"></div></div>
+      </div>`:''}
+      <div style="max-height:360px;overflow-y:auto;padding-right:4px">${pRows}</div>
+    </div>
+    <div class="card anim-up s2">
+      <div class="ctitle">📋 Cycle Log</div>
+      <div style="max-height:320px;overflow-y:auto;padding-right:4px">${lRows}</div>
+    </div>`;
+}
+
+// ── Settings ──────────────────────────────────────────────────
+function renderSettings(m) {
+  const k=LS.get('apikey')||'';
+  m.innerHTML=`
+    <div class="card anim-up">
+      <div class="ctitle">🤖 Anthropic API Key</div>
+      <p style="font-size:.83rem;color:var(--text2);line-height:1.72;margin-bottom:.95rem">
+        Add your Anthropic API key to enable full AI-powered hybrid generation, cycle narration, defect diagnosis, and extinction autopsies.<br>
+        <span style="font-size:.75rem;color:var(--text3)">Stored only in your browser's localStorage — never transmitted elsewhere.</span>
+      </p>
+      <input class="apiinp" type="password" placeholder="sk-ant-api03-…" value="${k}" oninput="saveKey(this.value)"/>
+      <div class="astat ${k?'on':'off'}">${k?'✅ API key active — full AI narration enabled':'🔑 No key set — using built-in fallback descriptions'}</div>
+    </div>
+    <div class="card anim-up s2">
+      <div class="ctitle">📖 How to Play</div>
+      <div style="font-size:.83rem;color:var(--text2);line-height:1.82">
+        <strong style="color:var(--text)">1. Gene Lab</strong> — Select two endangered species. Species from extinct combos are locked 🔒<br>
+        <strong style="color:var(--text)">2. Merge DNA</strong> — AI generates a scientifically-grounded hybrid with blended trait scores.<br>
+        <strong style="color:var(--text)">3. Cycle 1</strong> — Face an environmental pressure. Deploy a resource. Predict the outcome.<br>
+        <strong style="color:var(--text)">4. Cycle 2</strong> — Hidden genetic defects emerge. Choose how to respond.<br>
+        <strong style="color:var(--text)">5. Cycle 3</strong> — Final judgment: establishment, fragile survival, or permanent extinction.<br>
+        <br>
+        <span style="color:var(--text3);font-size:.77rem">The displayed survival rate shows your <em>expected</em> probability — the actual outcome always carries hidden variance. Your prediction accuracy is tracked over time.</span>
+      </div>
+    </div>
+    <div class="card anim-up s3">
+      <div class="ctitle">🗃️ Game Data</div>
+      <div style="font-size:.82rem;color:var(--text2);margin-bottom:.85rem">
+        Hybrids created: <strong>${ST.hybrids.length}</strong> · Established: <strong>${ST.fame.length}</strong> · Extinct: <strong>${ST.extinctions.length}</strong> · Resources: <strong>${ST.resources}</strong>
+      </div>
+      <button class="btn btn-d" onclick="if(confirm('Reset ALL game data? Cannot be undone.)){resetAll()}">🗑️ Reset All Game Data</button>
+    </div>`;
+}
+
+// ── Shared component renderers ────────────────────────────────
+function predButtons(pred, finalMode=false) {
+  const opts=finalMode
+    ?[{k:'survive',i:'🏆',t:'Established'},  {k:'damage',i:'⚠️',t:'Fragile Survival'},{k:'extinct',i:'💀',t:'Extinction'}]
+    :[{k:'survive',i:'✅',t:'Adapts & Survives'},{k:'damage',i:'⚠️',t:'Survives, Damaged'},{k:'extinct',i:'💀',t:'Perishes'}];
+  return `<div class="prow">${opts.map(o=>`
+    <button class="pb${pred===o.k?(o.k==='survive'?' psy':o.k==='damage'?' psd':' pse'):''}" onclick="setPred('${o.k}')">
+      <span class="pi">${o.i}</span><div class="pt">${o.t}</div>
+    </button>`).join('')}</div>`;
+}
+
+function rateBar(rate, col) {
+  return `<div class="ratew">
+    <div class="rateh"><span class="ratel">Projected survival rate — traits + event + resource</span><span class="ratep" style="color:${col}">${rate}%</span></div>
+    <div class="ratetr"><div class="ratefill" style="width:${rate}%;background:${col}"></div></div>
+    <div class="ratenote">⚠️ This reflects known factors only — actual outcome may differ due to hidden genetic variance.</div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ACTIONS
+// ═══════════════════════════════════════════════════════════════
+function switchView(v) {
+  VIEW=v;
+  document.querySelectorAll('.tb').forEach(t=>t.classList.toggle('on',t.dataset.v===v));
+  render();
+}
+
+function pick(id) {
+  const s=SPECIES.find(x=>x.id===id);
+  if(!s) return;
+  if(SEL_A?.id===id){SEL_A=null;render();return}
+  if(SEL_B?.id===id){SEL_B=null;render();return}
+  if(!SEL_A){SEL_A=s}else if(!SEL_B){SEL_B=s}else{SEL_A=s;SEL_B=null}
+  render();
+}
+
+function pickRes(id) {
+  RES=RESOURCES.find(r=>r.id===id)||null;
+  if(RES?.type==='cure') HAS_GENETX=true;
+  render();
+}
+
+function setPred(p) { PRED=p; render(); }
+function saveKey(k) { LS.set('apikey',k.trim()); renderSettings(document.getElementById('main')); }
+
+async function startMerge() {
+  if(!SEL_A||!SEL_B||SEL_A.id===SEL_B.id||isExtinct(SEL_A.id,SEL_B.id)) return;
+  PHASE='merging'; render();
+  try {
+    const traits=blendTraits(SEL_A,SEL_B);
+    const score=avgScore(traits);
+    let hd;
+    if(hasKey()) {
+      try {
+        const raw=await callAPI(
+          `Generate a scientific hybrid species name, emoji, and biology for a cross between a ${SEL_A.name} and a ${SEL_B.name}.\nBlended trait scores (0-100): ${JSON.stringify(traits)}\nViability score: ${score}/100\nReply ONLY with this JSON (no extra text):\n{"name":"...","emoji":"...","bio":"2-3 sentence vivid biological description","defects":["Defect name — brief genetic explanation","Defect name — brief genetic explanation"]}`,
+          'You are a genetics AI. Reply ONLY with valid JSON. No preamble or code fences.'
+        );
+        hd=JSON.parse(raw.replace(/```json|```/g,'').trim());
+      } catch(e){ hd=fbHybrid(SEL_A,SEL_B,score); }
+    } else { hd=fbHybrid(SEL_A,SEL_B,score); }
+
+    HYBRID={
+      id:Date.now(), name:hd.name, emoji:hd.emoji||SEL_A.emoji,
+      bio:hd.bio, rawDefects:hd.defects||[], traits, score,
+      parentA:SEL_A, parentB:SEL_B, outcome:null,
+    };
+    ST.hybrids.push({id:HYBRID.id,name:HYBRID.name});
+    saveState(ST);
+    EVENT=rndEvent(); PHASE='hybrid';
+  } catch(e){ console.error(e); PHASE='select'; }
+  render();
+}
+
+function goCycle1() { PHASE='cycle1'; RES=null; PRED=null; render(); }
+
+async function runCycle1() {
+  if(!PRED) return;
+  const rate=survivalRate();
+  const out=rollOutcome(rate);
+  if(RES&&ST.resources>0) { ST.resources=Math.max(0,ST.resources-1); }
+  const ok=PRED===out;
+  ST.predictions.push({name:HYBRID.name,pred:PRED,actual:out,ok,cycle:1});
+  ST.log.push({name:HYBRID.name,cycle:1,event:EVENT.name,res:RES?.name||'None',out});
+  PHASE='cycling'; render();
+  try {
+    NARR=hasKey()
+      ? await callAPI(`The hybrid "${HYBRID.name}" (${HYBRID.parentA.name}×${HYBRID.parentB.name}, viability ${HYBRID.score}/100) faces Cycle 1.\nEvent: ${EVENT.name} — ${EVENT.desc}\nResource deployed: ${RES?.name||'None'}\nOutcome: ${out.toUpperCase()}\nWrite 2-3 vivid sentences of scientific narration explaining the cycle outcome. Reference specific traits. Plain text only.`)
+      : fbNarrative(HYBRID.name,EVENT.name,out,1);
+  } catch{ NARR=fbNarrative(HYBRID.name,EVENT.name,out,1); }
+
+  if(out==='extinct') {
+    HYBRID.outcome='extinct'; FINAL_NARR=NARR;
+    ST.extinctions.push({name:HYBRID.name,emoji:HYBRID.emoji,pA:HYBRID.parentA.id,pB:HYBRID.parentB.id,pAn:HYBRID.parentA.name,pBn:HYBRID.parentB.name,score:HYBRID.score});
+    saveState(ST); PHASE='result'; render(); return;
+  }
+  if(out==='damage') DEF_PENALTY+=8;
+  PHASE='defects'; render();
+  // Load defects
+  try {
+    if(hasKey()&&HYBRID.rawDefects.length) {
+      const raw=await callAPI(
+        `The hybrid "${HYBRID.name}" is entering Cycle 2 with these defect seeds: ${HYBRID.rawDefects.join(' | ')}\nExpand each into detailed science. Reply ONLY with JSON array:\n[{"name":"...","desc":"1-2 sentence scientific explanation","impact":"specific survival consequence"},...]`,
+        'Reply ONLY with a valid JSON array. No preamble.'
+      );
+      DEFECTS=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    } else {
+      const seeds=HYBRID.rawDefects.length?HYBRID.rawDefects:rndDefects(2).map(d=>`${d.name} — ${d.desc}`);
+      DEFECTS=fbDefects(seeds);
+    }
+  } catch { DEFECTS=rndDefects(2); }
+  PRED=null; PHASE='cycle2'; saveState(ST); render();
+}
+
+async function defectResponse(choice) {
+  let goExtinct=false;
+  if(choice==='accept') { DEF_PENALTY+=20; }
+  else if(choice==='therapy') {
+    if(!HAS_GENETX||ST.resources<1) return;
+    ST.resources=Math.max(0,ST.resources-1);
+    if(Math.random()<.6){DEFECTS=DEFECTS.slice(1);DEF_PENALTY+=5;NARR='💉 Gene therapy succeeded — one defect cured.';}
+    else{DEF_PENALTY+=30;NARR='💉 Gene therapy failed — mutation worsened.';}
+  } else if(choice==='cull') {
+    ST.resources=Math.min(ST.resources+1,10); goExtinct=true;
+  } else if(choice==='wild') {
+    const v=Math.round((Math.random()*60)-30);
+    if(v<0) DEF_PENALTY+=Math.abs(v);
+    if(Math.random()<.32) goExtinct=true;
+  }
+  saveState(ST);
+  if(goExtinct) {
+    PHASE='cycling'; render();
+    try {
+      FINAL_NARR=hasKey()
+        ? await callAPI(`Write a 2-3 sentence conservation biology verdict for "${HYBRID.name}" (${HYBRID.parentA.name}×${HYBRID.parentB.name}). The hybrid WENT EXTINCT via voluntary culling or wild release failure. Viability: ${HYBRID.score}/100. Plain text only.`)
+        : fbVerdict(HYBRID.name,'extinct');
+    } catch { FINAL_NARR=fbVerdict(HYBRID.name,'extinct'); }
+    HYBRID.outcome='extinct';
+    ST.extinctions.push({name:HYBRID.name,emoji:HYBRID.emoji,pA:HYBRID.parentA.id,pB:HYBRID.parentB.id,pAn:HYBRID.parentA.name,pBn:HYBRID.parentB.name,score:HYBRID.score});
+    saveState(ST); PHASE='result'; render(); return;
+  }
+  EVENT=rndEvent(EVENT?.id); PRED=null; PHASE='cycle3'; render();
+}
+
+async function runCycle3() {
+  if(!PRED) return;
+  const rate=survivalRate();
+  const out=rollOutcome(rate);
+  ST.predictions.push({name:HYBRID.name,pred:PRED,actual:out,ok:PRED===out,cycle:3});
+  ST.log.push({name:HYBRID.name,cycle:3,event:EVENT.name,res:'None',out});
+  PHASE='cycling'; render();
+  try {
+    FINAL_NARR=hasKey()
+      ? await callAPI(`Write a 2-3 sentence conservation biology final report for "${HYBRID.name}" (${HYBRID.parentA.name}×${HYBRID.parentB.name}, viability ${HYBRID.score}/100).\nFinal outcome: ${out==='survive'?'ESTABLISHED A BREEDING POPULATION':out==='damage'?'SURVIVES IN FRAGILE STATE':'WENT EXTINCT'}.\nExplain what genetic factors determined this outcome. Plain text only.`)
+      : fbVerdict(HYBRID.name,out);
+  } catch { FINAL_NARR=fbVerdict(HYBRID.name,out); }
+  HYBRID.outcome=out;
+  if(out==='extinct') {
+    ST.extinctions.push({name:HYBRID.name,emoji:HYBRID.emoji,pA:HYBRID.parentA.id,pB:HYBRID.parentB.id,pAn:HYBRID.parentA.name,pBn:HYBRID.parentB.name,score:HYBRID.score});
+  } else {
+    ST.fame.push({name:HYBRID.name,emoji:HYBRID.emoji,pAn:HYBRID.parentA.name,pBn:HYBRID.parentB.name,pA:HYBRID.parentA.id,pB:HYBRID.parentB.id,score:HYBRID.score,outcome:out});
+    ST.resources=Math.min(ST.resources+1,10);
+  }
+  saveState(ST); PHASE='result'; render();
+}
+
+function resetAll() {
+  LS.clear(); ST=loadState(); resetSession(); render();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════
+document.getElementById('tabs').addEventListener('click',e=>{
+  const tb=e.target.closest('.tb');
+  if(tb) switchView(tb.dataset.v);
+});
+
+render();
+</script>
+</body>
+</html>
