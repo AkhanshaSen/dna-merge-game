@@ -1,6 +1,6 @@
 # 🧬 DNA Merge: Species Survival Engine
 
-A conservation genetics game where you merge endangered species, simulate their survival across 3 cycles, and fight extinction — powered by AI narration and localStorage saves.
+A conservation genetics game where you merge endangered species (or renew lines within a species), then steer **three animal crosses per round** through **four life stages** each (birth → old age). Every stage pairs **one conservation deploy** with **one survival forecast** against a crisis — scored by a **2×2 matrix**, tracked by a **vitality meter**, with **nine deploy passes per round** split across crosses — plus **care+mate legacy** bonuses when a line survives its full arc.
 
 ---
 
@@ -9,7 +9,7 @@ A conservation genetics game where you merge endangered species, simulate their 
 1. **Upload this folder to a new GitHub repo**
    - Go to [github.com/new](https://github.com/new)
    - Name it anything (e.g. `dna-merge-game`)
-   - Drag the `index.html` file into the repo (or use `git push`)
+   - Push the whole folder (especially `index.html`, `css/`, `js/`)
 
 2. **Enable GitHub Pages**
    - Go to your repo → **Settings** → **Pages**
@@ -26,31 +26,19 @@ A conservation genetics game where you merge endangered species, simulate their 
 
 | Step | Action |
 |------|--------|
-| **Gene Lab** | Select two endangered species (A + B) |
-| **Merge** | AI generates a scientifically-flavoured hybrid with blended trait scores |
-| **Cycle 1** | Face an environmental pressure · deploy a resource · predict the outcome |
-| **Cycle 2** | Hidden genetic defects reveal · choose how to respond |
-| **Cycle 3** | Final judgment — establishment, fragile survival, or permanent extinction |
+| **Gene Lab** | Pick **two named founders** (slot A + B). Each real species has three animals with gender and personality. |
+| **Classes** | Only **matching animal classes** can breed: mammals ↔ mammals, reptiles/amphibians ↔ reptiles/amphibians, birds ↔ birds. Cross-class hybrids are blocked. |
+| **Realms** | **Land**, **marine**, and **freshwater** lineages cannot cross — e.g. leatherbacks or vaquitas cannot pair with terrestrial mammals; axolotls stay in freshwater-only pairings. |
+| **Gender** | Merge requires **one male + one female** founder (same-species pairs included). |
+| **Round structure** | One **round** = **3 crosses**. Each cross = merge → **4 life stages** (Birth · Juvenile · Adult · Old age). Complete all four on a cross for Hall of Fame + **legacy bonuses**. |
+| **Deploy passes** | **9 passes per round**, allocated **4 + 3 + 2** across crosses 1→3. Each resolved stage spends **one pass**. Wrong deploy collapses that cross immediately. |
+| **Matrix scoring** | **Right deploy + right forecast → +10 pts** · **Right deploy + wrong forecast → +7 pts** · **Wrong deploy → extinction**, **−7 pts** if you forecast `extinct`, **−10 pts** otherwise. |
+| **Survival forecast** | One pick per stage among **survive / damage / extinct**, compared to a hidden dice outcome **when deploy was correct**. |
+| **Health meter** | **Vitality %** rises or falls across stages for narrative continuity; hitting **0** ends the cross. |
+| **Care+mate legacy** | Finish all four stages on a cross → **+8 %pts** toward survival maths on later crosses this round **and +2 bonus passes** when you begin the **next** cross. |
+| **Round summary** | After the third cross, review points gained and return to Gene Lab → **breed slot** advances **1–5** (persisted). |
 
-> The displayed survival rate shows your *expected* probability.  
-> Actual outcomes always carry hidden variance — predictions matter.
-
----
-
-## 🤖 AI Narration (Optional)
-
-The game runs fully without an API key using built-in biology descriptions.
-
-To unlock AI-powered narration:
-1. Get an [Anthropic API key](https://console.anthropic.com/)
-2. Open the game → click **⚙️ Settings** → paste your key
-3. The key is saved only in your browser's localStorage
-
-Uses **claude-sonnet-4** for:
-- Hybrid name + biology generation
-- Cycle survival narration  
-- Genetic defect diagnosis
-- Final extinction autopsy
+> Survival projections still use additive **%pts** toward a clamped band (see `game-logic.js` / `life-round-logic.js`). Older **`dna_resources`** values remain stored but are not central to this matrix economy.
 
 ---
 
@@ -61,57 +49,71 @@ All progress is auto-saved to your browser:
 | Key | Contents |
 |-----|----------|
 | `dna_hybrids` | All hybrids ever created |
-| `dna_extinctions` | Permanently extinct combos (locked forever) |
-| `dna_fame` | Established / Hall of Fame hybrids |
-| `dna_resources` | Current conservation resource count |
-| `dna_predictions` | Full prediction history + accuracy |
+| `dna_extinctions` | Extinct founder pairs (`mergeKey`) plus legacy species-only rows |
+| `dna_fame` | Established / Hall of Fame cohorts |
+| `dna_resources` | Conservation pool (**defaults to 9**, fractional budgets OK — gene therapy spends **1.5**) |
+| `dna_breedRound` | Breed campaign slot **1–5** (wraps) — advances when you finish a **round summary** |
+| `dna_predictions` | Forecast history (predicted vs actual per life-stage beat) |
+| `dna_points` | Lifetime **scoreboard total** from the deploy × forecast matrix |
 | `dna_log` | Complete cycle event log |
-| `dna_apikey` | Your Anthropic API key |
+
+See **`docs/GAME_FLOW.md`** for round / cross / stage rules and matrix math.
 
 ---
 
-## 🌍 Species List
+## 🌍 Species & founders
 
-| Emoji | Species | IUCN Status |
-|-------|---------|-------------|
-| 🐆 | Snow Leopard | VU |
-| 🐈 | Amur Leopard | CR |
-| 🦎 | Axolotl | CR |
-| 🐬 | Vaquita | CR |
-| 🦏 | Javan Rhino | CR |
-| 🐯 | Sunda Tiger | CR |
-| 🦜 | Kakapo | CR |
-| 🦍 | Mountain Gorilla | EN |
-| 🐾 | Chinese Pangolin | CR |
-| 🐢 | Leatherback Turtle | VU |
-| 🦌 | Saola | CR |
-| 🦧 | Sumatran Orangutan | CR |
+Twelve flagship species — **36 named founders** total (three per species), each with gender and personality flavour text used in blending and narration.
+
+Taxonomy bucket | Species |
+|----------------|---------|
+| **Mammals** | Snow Leopard, Amur Leopard, Vaquita, Javan Rhino, Sunda Tiger, Mountain Gorilla, Chinese Pangolin, Saola, Sumatran Orangutan |
+| **Reptiles / amphibians** | Axolotl, Leatherback Turtle |
+| **Birds** | Kakapo |
 
 ---
 
-## 📁 File Structure
+## 📁 File structure
 
 ```
 dna-merge-game/
-└── index.html      ← The entire game (single file, zero dependencies)
-└── README.md       ← This file
+├── docs/
+│   └── GAME_FLOW.md   ← Step-by-step cohort / beat logic
+├── index.html          ← Shell + loads css + ES module entrypoint
+├── css/
+│   └── styles.css      ← All visuals
+├── js/
+│   ├── main.js         ← Bootstraps globals for UI handlers + tabs
+│   ├── state.js        ← Mutable session `game` object + resets
+│   ├── constants.js    ← Events, resources, trait labels, defect pool
+│   ├── species.js      ← Species data + founders + taxonomy helpers
+│   ├── breeding.js     ← Trait blending, merge keys, compatibility rules
+│   ├── cycle-meta.js   ← Life-stage maturity banners
+│   ├── life-round-logic.js ← Canonical deploy selection & survival rate helpers
+│   ├── storage.js      ← localStorage helpers
+│   ├── fallbacks.js    ← Built-in hybrid / narrative / defect copy
+│   ├── game-logic.js   ← RNG events, survival formula, outcome dice
+│   ├── render.js       ← DOM rendering
+│   └── actions.js      ← User flows + persistence writes
+└── README.md
 ```
 
-Zero build steps. Zero npm. Zero dependencies. Just open `index.html`.
+Still **zero npm / zero build**. Serve over **http(s)** so ES modules load (`npx serve .`, GitHub Pages, or `python3 -m http.server`).
+
+Opening `index.html` directly via `file://` may block modules in some browsers — use a tiny static server if the screen stays blank.
 
 ---
 
-## 🛠 Local Development
-
-Just open `index.html` in any browser. No server needed.
+## 🛠 Local development
 
 ```bash
-# Optional: serve locally
 npx serve .
 # or
 python3 -m http.server 8080
 ```
 
+Then open the printed localhost URL.
+
 ---
 
-MIT License · Built with 🧬 and Anthropic Claude
+MIT License · Built with 🧬
