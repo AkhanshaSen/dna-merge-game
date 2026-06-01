@@ -37,8 +37,13 @@ A conservation genetics game where you merge endangered species (or renew lines 
 | **Health meter** | **Vitality %** rises or falls across stages for narrative continuity; hitting **0** ends the cross. |
 | **Care+mate legacy** | Finish all four stages on a cross → **+8 %pts** toward survival maths on later crosses this round **and +2 bonus passes** when you begin the **next** cross. |
 | **Round summary** | After the third cross, review points gained and return to Gene Lab → **breed slot** advances **1–5** (persisted). |
+| **Genetics preview** | Valid A+B pair shows projected viability band before merge. |
+| **Defect triage** | Cross-line hybrids may carry defects; spend **1.5 resources** for gene therapy or accept the burden. |
+| **Trait drift** | Traits shift after each survived life stage — visible on hybrid bars. |
+| **Synergy hints** | Deploy cards glow when they match the active crisis. |
+| **Campaign slots** | Breed slots 1–5 change pressure; slot 5 adds cryptic resonance on old age. |
 
-> Survival projections still use additive **%pts** toward a clamped band (see `game-logic.js` / `life-round-logic.js`). Older **`dna_resources`** values remain stored but are not central to this matrix economy.
+> Survival projections use additive **%pts** toward a clamped band (see `life-round-logic.js`). **`dna_resources`** power gene therapy; achievements and tutorial state persist in **`dna_achievements`** / **`dna_tutorialDone`**.
 
 ---
 
@@ -56,8 +61,10 @@ All progress is auto-saved to your browser:
 | `dna_predictions` | Forecast history (predicted vs actual per life-stage beat) |
 | `dna_points` | Lifetime **scoreboard total** from the deploy × forecast matrix |
 | `dna_log` | Complete cycle event log |
+| `dna_achievements` | Unlocked milestone IDs |
+| `dna_tutorialDone` | First-run guide completed |
 
-See **`docs/GAME_FLOW.md`** for round / cross / stage rules and matrix math.
+See **`docs/GAME_FLOW.md`** for round / cross / stage rules, genetics, and campaign slots.
 
 ---
 
@@ -88,7 +95,9 @@ dna-merge-game/
 │   ├── constants.js    ← Events, resources, trait labels, defect pool
 │   ├── species.js      ← Species data + founders + taxonomy helpers
 │   ├── breeding.js     ← Trait blending, merge keys, compatibility rules
-│   ├── cycle-meta.js   ← Life-stage maturity banners
+│   ├── cycle-meta.js   ← Life-stage banners + timeline UI
+│   ├── campaign.js     ← Breed slot 1–5 modifiers
+│   ├── achievements.js ← Milestone unlocks
 │   ├── life-round-logic.js ← Canonical deploy selection & survival rate helpers
 │   ├── storage.js      ← localStorage helpers
 │   ├── fallbacks.js    ← Built-in hybrid / narrative / defect copy

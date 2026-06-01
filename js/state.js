@@ -38,6 +38,31 @@ export const game = {
 
   FINAL_NARR: '',
   NARR: '',
+
+  /** Gene Lab filter: all | mammal | reptile | avian | terrestrial | marine | freshwater | compat */
+  labFilter: 'all',
+
+  /** life sub-step: null | receipt | triage | care */
+  lifeSubStep: null,
+
+  /** Shown once per session until dismissed */
+  showTutorial: false,
+  tutorialStep: 0,
+  recordsFilter: 'all',
+
+  DEF_PENALTY: 0,
+  secretKey: null,
+
+  /** Lab pool empty — forecast-only stages */
+  gambitMode: false,
+  /** Round-scoped deploy accuracy for devil marking */
+  roundDeployStats: { total: 0, wrong: 0 },
+  devilShownThisRound: false,
+  isDevilMarked: false,
+  showDevilModal: false,
+  lastGambitDice: null,
+  /** One extinction-revival per animal cross */
+  revivalUsedThisCross: false,
 };
 
 export function reloadPersistedState() {
@@ -58,6 +83,12 @@ export function resetCrossSession() {
   game.healthMeter = 100;
   game.FINAL_NARR = '';
   game.NARR = '';
+  game.lifeSubStep = null;
+  game.DEF_PENALTY = 0;
+  game.secretKey = null;
+  game.gambitMode = false;
+  game.lastGambitDice = null;
+  game.revivalUsedThisCross = false;
 }
 
 /** Cleared when finishing a meta-round summary */
@@ -69,6 +100,11 @@ export function resetRoundSession() {
   game.careMateLedgerPct = 0;
   game.bonusPassesNextSubRound = 0;
   game.roundPointsSnapshot = 0;
+  game.roundDeployStats = { total: 0, wrong: 0 };
+  game.devilShownThisRound = false;
+  game.isDevilMarked = false;
+  game.showDevilModal = false;
+  game.gambitMode = false;
 }
 
 export function resetSession() {

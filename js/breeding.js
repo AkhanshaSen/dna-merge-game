@@ -1,3 +1,5 @@
+import { DEFECT_POOL } from './constants.js';
+
 /** Deterministic-ish micro-variance from founder personality strings */
 function personalityBias(personality, traitKey) {
   let h = 2166136261;
@@ -42,6 +44,56 @@ export function blendTraits(foundA, foundB) {
 export function avgScore(traits) {
   const v = Object.values(traits);
   return Math.round(v.reduce((a, b) => a + b, 0) / v.length);
+}
+
+/** Projected trait band before merge (no RNG) — Niche-style preview */
+export function previewBlend(foundA, foundB) {
+  const sameSpecies = foundA.species.id === foundB.species.id;
+  const baseA = foundA.species.traits;
+  const baseB = foundB.species.traits;
+  const traitsMin = {};
+  const traitsMax = {};
+  for (const k of Object.keys(baseA)) {
+    if (sameSpecies) {
+      const mid = (baseA[k] + baseB[k]) / 2;
+      const pers =
+        (personalityBias(foundA.individual.personality, k) +
+          personalityBias(foundB.individual.personality, k)) /
+        2;
+      traitsMin[k] = Math.max(5, Math.min(100, Math.round(mid + pers - 6)));
+      traitsMax[k] = Math.max(5, Math.min(100, Math.round(mid + pers + 6)));
+    } else {
+      const mid = baseA[k] * 0.5 + baseB[k] * 0.5;
+      traitsMin[k] = Math.max(5, Math.min(100, Math.round(mid - 10)));
+      traitsMax[k] = Math.max(5, Math.min(100, Math.round(mid + 10)));
+    }
+  }
+  return {
+    sameSpecies,
+    traitsMin,
+    traitsMax,
+    scoreMin: avgScore(traitsMin),
+    scoreMax: avgScore(traitsMax),
+  };
+}
+
+/** Roll genetic defect for hybrid cohort */
+export function rollHybridDefect(sameSpecies, breedRound = 1) {
+  let chance = sameSpecies ? 0.12 : 0.42;
+  if (breedRound === 4) chance += 0.1;
+  if (Math.random() > chance) return null;
+  const pick = DEFECT_POOL[Math.floor(Math.random() * DEFECT_POOL.length)];
+  return { ...pick, penalty: defectPenaltyFor(pick.name) };
+}
+
+function defectPenaltyFor(name) {
+  if (name.includes('Immune')) return { trait: 'immune', amount: 12 };
+  if (name.includes('Infertility')) return { trait: 'reproduction', amount: 10 };
+  if (name.includes('Behavioural')) return { trait: 'social', amount: 10 };
+  if (name.includes('Malformation')) return { trait: 'size', amount: 8 };
+  if (name.includes('Thermal')) return { trait: 'climate', amount: 12 };
+  if (name.includes('Neurological')) return { trait: 'adaptability', amount: 10 };
+  return { trait: 'adaptability', amount: 8 };
 }
 
 /**

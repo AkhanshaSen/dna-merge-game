@@ -10,12 +10,46 @@ import {
   MATRIX_WR_WG,
   CARE_MATE_BONUS_PER_FULL_LIFE,
   FORECAST_POINTS_SOFT_CAP,
+  GENEFIX_COST,
+  CARE_PERKS,
+  GAMBIT_FORECAST_PTS_OK,
+  GAMBIT_FORECAST_PTS_MISS,
+  FULL_LIFE_LAB_BONUS,
+  CROSS_LAB_STIPEND,
+  MIN_LAB_FOR_DEPLOY,
 } from './constants.js';
 import { findFounder } from './species.js';
 import { LS } from './storage.js';
 import { fbHybrid, fbNarrative, fbVerdict } from './fallbacks.js';
-import { blendTraits, avgScore, mergePairKey, mergeBlockReason } from './breeding.js';
-import { rndEvent, rollOutcome } from './game-logic.js';
+import {
+  blendTraits,
+  avgScore,
+  mergePairKey,
+  mergeBlockReason,
+  rollHybridDefect,
+  applyTraitDriftToHybrid,
+} from './breeding.js';
+import {
+  rndEvent,
+  rollOutcome,
+  generateSecretKey,
+  resolveStageVitality,
+  rollGambitFate,
+  applyGambitVitality,
+} from './game-logic.js';
+import {
+  canAffordDeploy,
+  syncGambitMode,
+  deductDeployCost,
+  trackDeployChoice,
+  triggerDevilIfNeeded,
+  applyStewardshipRefund,
+  deployLabCost,
+  applyCrossLabStipend,
+} from './resource-economy.js';
+import { setCoachForPhase } from './coach-hints.js';
+import { applyCampaignEventImpact, campaignForSlot } from './campaign.js';
+import { checkAchievements } from './achievements.js';
 import { showToast } from './toast.js';
 import {
   game,
@@ -27,6 +61,16 @@ import {
 } from './state.js';
 import { render } from './render.js';
 import { canonicalCorrectResource, survivalRateLifeStage, dicePhaseForLifeStage } from './life-round-logic.js';
+import {
+  isDeployCorrectForCrisis,
+  isObserveDeploy,
+  isImproviseDeploy,
+} from './deploy-match.js';
+import {
+  isRevivalEligible,
+  applyExtinctionRevival,
+  revivalWouldCompleteCross,
+} from './extinction-revival.js';
 
 function clampResource(n) {
   return Math.min(Math.max(0, n), RESOURCE_SOFT_CAP);
@@ -72,12 +116,189 @@ function ensureRoundBudget() {
     game.careMateLedgerPct = 0;
     game.bonusPassesNextSubRound = 0;
     game.roundPointsSnapshot = game.ST.points;
+    game.roundDeployStats = { total: 0, wrong: 0 };
+    game.devilShownThisRound = false;
+    game.isDevilMarked = false;
+    game.showDevilModal = false;
   }
+}
+
+export function dismissDevil() {
+  game.showDevilModal = false;
+  render();
 }
 
 export function switchView(v) {
   game.VIEW = v;
   document.querySelectorAll('.tb').forEach((t) => t.classList.toggle('on', t.dataset.v === v));
+  render();
+}
+
+export function setLabFilter(filter) {
+  game.labFilter = filter || 'all';
+  render();
+}
+
+export function dismissTutorial() {
+  game.ST.tutorialDone = true;
+  game.showTutorial = false;
+  savePersisted();
+  render();
+}
+
+export function dismissStageReceipt() {
+  if (game.lifeSubStep !== 'receipt') return;
+  if (isRevivalEligible(game.LAST_RESOLVE)) {
+    game.lifeSubStep = 'revival';
+    setCoachForPhase('revival', { resolve: game.LAST_RESOLVE });
+    render();
+    return;
+  }
+  proceedAfterReceiptCore();
+}
+
+export function acceptExtinctionRevival() {
+  if (game.lifeSubStep !== 'revival' || !isRevivalEligible(game.LAST_RESOLVE)) return;
+  const lr = game.LAST_RESOLVE;
+  const name = game.HYBRID?.name || 'the cohort';
+  const result = applyExtinctionRevival();
+  game.lifeSubStep = null;
+  game.LAST_RESOLVE = null;
+
+  driftAfterStage();
+
+  if (revivalWouldCompleteCross()) {
+    showToast(
+      {
+        title: 'Extinction averted',
+        body: `+${result.labAdded} lab units · ${name} completes this cross on borrowed time.`,
+        variant: 'good',
+      },
+      4200,
+    );
+    logLifeBeat({
+      event: game.EVENT?.name || 'crisis',
+      res: 'Foreseen revival',
+      out: 'revived',
+      detail: `revival +${result.labAdded} lab · cross completed at stage ${result.stageBefore}`,
+    });
+    savePersisted();
+    game.NARR = `You read the collapse coming — and earned one last chance. ${name} limps through old age with renewed lab support.`;
+    advanceAfterSubRoundSuccess();
+    return;
+  }
+
+  game.lifeStageIndex += 1;
+  const stageAfter = game.lifeStageIndex;
+
+  showToast(
+    {
+      title: 'Extinction averted',
+      body: `+${result.labAdded} lab units · vitality restored · advancing to life stage ${stageAfter}.`,
+      variant: 'good',
+    },
+    4200,
+  );
+
+  logLifeBeat({
+    event: game.EVENT?.name || 'crisis',
+    res: 'Foreseen revival',
+    out: 'revived',
+    detail: `revival +${result.labAdded} lab · stage ${result.stageBefore}→${stageAfter}`,
+  });
+  savePersisted();
+  maybeOfferTriage();
+  if (game.lifeSubStep === 'triage') {
+    setCoachForPhase('triage');
+    render();
+    return;
+  }
+  maybeOfferCarePerk();
+  if (game.lifeSubStep === 'care') {
+    setCoachForPhase('care');
+    render();
+    return;
+  }
+
+  maybeRollSecretKey();
+  game.EVENT = applyCampaignEventImpact(rndEvent(game.EVENT?.id), game.ST.breedRound);
+  game.LIFE_RES = null;
+  game.LIFE_PRED = null;
+  syncGambitMode();
+  setCoachForPhase(game.gambitMode ? 'life-gambit' : 'life');
+  render();
+}
+
+export function declineExtinctionRevival() {
+  if (game.lifeSubStep !== 'revival') return;
+  game.lifeSubStep = null;
+  proceedAfterReceiptCore();
+}
+
+export function triageAcceptDefect() {
+  if (game.lifeSubStep !== 'triage') return;
+  game.lifeSubStep = null;
+  setCoachForPhase('life');
+  maybeOfferCarePerk();
+  render();
+}
+
+export function triageCureDefect() {
+  if (game.lifeSubStep !== 'triage' || !game.HYBRID?.defect) return;
+  if (game.ST.resources < GENEFIX_COST) {
+    showToast(
+      { title: 'Insufficient resources', body: `Gene therapy costs ${GENEFIX_COST} conservation units.`, variant: 'warn' },
+      4000,
+    );
+    return;
+  }
+  game.ST.resources = clampResource(game.ST.resources - GENEFIX_COST);
+  syncGambitMode();
+  game.HYBRID.defectCured = true;
+  game.DEF_PENALTY = 0;
+  game.lifeSubStep = null;
+  savePersisted();
+  showToast({ title: 'Defect treated', body: 'Gene therapy eased the genetic burden.', variant: 'good' }, 4200);
+  setCoachForPhase('life');
+  maybeOfferCarePerk();
+  render();
+}
+
+export function pickCarePerk(perkId) {
+  const perk = CARE_PERKS.find((p) => p.id === perkId);
+  if (!perk || game.lifeSubStep !== 'care') return;
+  game.HYBRID.carePerk = perk;
+  if (perk.health) game.healthMeter = Math.min(100, game.healthMeter + perk.health);
+  game.lifeSubStep = null;
+  game.lifeStageIndex += 1;
+  maybeRollSecretKey();
+  game.EVENT = applyCampaignEventImpact(rndEvent(game.EVENT?.id), game.ST.breedRound);
+  game.LIFE_RES = null;
+  game.LIFE_PRED = null;
+  game.PHASE = 'life';
+  syncGambitMode();
+  setCoachForPhase(game.gambitMode ? 'life-gambit' : 'life');
+  render();
+}
+
+export function setRecordsFilter(f) {
+  game.recordsFilter = f || 'all';
+  render();
+}
+
+export function showTutorial() {
+  game.showTutorial = true;
+  game.tutorialStep = 0;
+  render();
+}
+
+export function tutorialNext() {
+  game.tutorialStep = (game.tutorialStep || 0) + 1;
+  render();
+}
+
+export function tutorialPrev() {
+  game.tutorialStep = Math.max(0, (game.tutorialStep || 0) - 1);
   render();
 }
 
@@ -165,6 +386,10 @@ export function startMerge() {
     const hd = fbHybrid(A, B, score);
     const mk = mergePairKey(A, B);
 
+    const sameSp = A.species.id === B.species.id;
+    const defect = rollHybridDefect(sameSp, game.ST.breedRound);
+    game.DEF_PENALTY = defect ? 6 : 0;
+
     game.HYBRID = {
       id: Date.now(),
       name: hd.name,
@@ -177,13 +402,20 @@ export function startMerge() {
       parentB: B,
       mergeKey: mk,
       outcome: null,
-      sameSpeciesRenewal: A.species.id === B.species.id,
+      sameSpeciesRenewal: sameSp,
+      defect,
+      defectCured: false,
+      carePerk: null,
+      carePerkOffered: false,
     };
 
     game.ST.hybrids.push({ id: game.HYBRID.id, name: game.HYBRID.name });
     savePersisted();
-    game.EVENT = rndEvent();
+    checkAchievements(game, 'hybrid_created');
+    const rawEv = rndEvent();
+    game.EVENT = applyCampaignEventImpact(rawEv, game.ST.breedRound);
     game.PHASE = 'hybrid';
+    setCoachForPhase('hybrid');
   } catch (e) {
     console.error(e);
     game.PHASE = 'select';
@@ -205,19 +437,137 @@ export function beginLifeStage() {
   game.bonusPassesNextSubRound = 0;
   const slice = PASSES_PER_CROSS_SEQUENCE[Math.min(SUB_ROUNDS_PER_ROUND, Math.max(1, game.subRoundIndex || 1)) - 1] ?? 3;
   game.crossPassesRemaining = slice + extra;
-  if (!game.EVENT) game.EVENT = rndEvent();
+  if (!game.EVENT) {
+    game.EVENT = applyCampaignEventImpact(rndEvent(), game.ST.breedRound);
+  }
+  game.lifeSubStep = null;
+  game.revivalUsedThisCross = false;
+  const stipend = applyCrossLabStipend();
+  syncGambitMode();
+  if (stipend > 0) {
+    showToast(
+      {
+        title: 'Field resupply',
+        body: `Cross ${game.subRoundIndex}: +${stipend} lab units (minimum ${CROSS_LAB_STIPEND} per cross · ${RESOURCE_SOFT_CAP} round cap).`,
+        variant: 'good',
+      },
+      4000,
+    );
+    game.coachNote = {
+      kind: 'good',
+      text: `<strong>Shared round budget.</strong> Lab is pooled across all ${SUB_ROUNDS_PER_ROUND} crosses (max ${RESOURCE_SOFT_CAP}). You were empty — field teams delivered <strong>+${stipend}</strong> so this cross can still deploy. Gambit remains if you run dry again.`,
+    };
+  } else {
+    setCoachForPhase(game.gambitMode ? 'life-gambit' : 'life');
+  }
+  render();
+}
+
+function maybeOfferCarePerk() {
+  const idx = game.lifeStageIndex;
+  if (game.HYBRID?.carePerkOffered || idx < 2 || idx >= LIFE_STAGES_PER_SUBROUND) return;
+  if (game.HYBRID.outcome === 'extinct') return;
+  game.HYBRID.carePerkOffered = true;
+  game.lifeSubStep = 'care';
+}
+
+function maybeOfferTriage() {
+  if (!game.HYBRID?.defect || game.HYBRID.defectCured) return;
+  if (game.lifeStageIndex < 2) return;
+  game.lifeSubStep = 'triage';
+}
+
+function maybeRollSecretKey() {
+  const camp = campaignForSlot(game.ST.breedRound);
+  if (!camp.secretKeys || game.lifeStageIndex !== LIFE_STAGES_PER_SUBROUND) return;
+  if (game.secretKey) return;
+  game.secretKey = generateSecretKey();
+  game.secretKey.applied = true;
+}
+
+function driftAfterStage() {
+  const idx = game.lifeStageIndex;
+  const minMag = idx <= 1 ? 1 : idx === 2 ? 2 : 3;
+  const maxMag = idx <= 1 ? 2 : idx === 2 ? 4 : 6;
+  applyTraitDriftToHybrid(game.HYBRID, minMag, maxMag);
+  game.HYBRID.score = avgScore(game.HYBRID.traits);
+}
+
+function proceedAfterReceiptCore() {
+  const lr = game.LAST_RESOLVE;
+  game.lifeSubStep = null;
+
+  if (!lr?.resourceOk) {
+    advanceAfterSubRoundFailure();
+    return;
+  }
+
+  if (game.healthMeter <= 0) {
+    game.NARR = lr?.narrative || '';
+    advanceAfterSubRoundFailure();
+    return;
+  }
+
+  driftAfterStage();
+  maybeOfferTriage();
+  if (game.lifeSubStep === 'triage') {
+    setCoachForPhase('triage');
+    render();
+    return;
+  }
+
+  if (game.lifeStageIndex >= LIFE_STAGES_PER_SUBROUND) {
+    game.NARR = lr.narrative;
+    advanceAfterSubRoundSuccess();
+    return;
+  }
+
+  maybeOfferCarePerk();
+  if (game.lifeSubStep === 'care') {
+    setCoachForPhase('care');
+    render();
+    return;
+  }
+
+  game.lifeStageIndex += 1;
+  maybeRollSecretKey();
+  game.EVENT = applyCampaignEventImpact(rndEvent(game.EVENT?.id), game.ST.breedRound);
+  game.LIFE_RES = null;
+  game.LIFE_PRED = null;
+  game.PHASE = 'life';
+  syncGambitMode();
+  setCoachForPhase(game.gambitMode ? 'life-gambit' : 'life');
   render();
 }
 
 export function pickLifeResource(id) {
+  if (game.gambitMode && id !== 'observe') return;
   const res = RESOURCES.find((r) => r.id === id) || null;
+  if (!res || res.type === 'cure') return;
+  if (res.type === 'observe') {
+    game.LIFE_RES = res;
+    game.LIFE_PRED = null;
+    setCoachForPhase('life-observe');
+    render();
+    return;
+  }
+  if (!canAffordDeploy(res, game.ST.resources)) {
+    showToast(
+      { title: 'Insufficient lab resources', body: `Need ${deployLabCost(res)} units for ${res.name}.`, variant: 'warn' },
+      3800,
+    );
+    return;
+  }
   game.LIFE_RES = res;
+  game.LIFE_PRED = null;
+  setCoachForPhase('life-deploy');
   render();
 }
 
 export function pickLifePred(pred) {
   if (pred !== 'survive' && pred !== 'damage' && pred !== 'extinct') return;
   game.LIFE_PRED = pred;
+  setCoachForPhase('life-forecast');
   render();
 }
 
@@ -258,6 +608,9 @@ function advanceAfterSubRoundSuccess() {
   game.careMateLedgerPct += CARE_MATE_BONUS_PER_FULL_LIFE;
   game.bonusPassesNextSubRound += 2;
   game.ST.fame.push(famePayload());
+  game.ST.resources = clampResource(game.ST.resources + FULL_LIFE_LAB_BONUS);
+  checkAchievements(game, 'full_life');
+  checkAchievements(game, 'fame');
   game.FINAL_NARR = `🌟 ${game.HYBRID.name} completed a full natural life. Care+mate legacy: <strong>+${CARE_MATE_BONUS_PER_FULL_LIFE}%pts</strong> toward survival in later crosses this round, and <strong>+2 deploy passes</strong> banked toward the next cross.`;
   savePersisted();
   game.PHASE = 'subRoundEnd';
@@ -276,36 +629,183 @@ function goToNextCrossOrRound() {
   game.SEL_PARENT_A = game.SEL_PARENT_B = null;
   game.HYBRID = null;
   game.PHASE = 'select';
+  const lab = Number(game.ST.resources) || 0;
+  const depleted = lab < MIN_LAB_FOR_DEPLOY;
   game.coachNote = {
-    kind: 'good',
-    text: `🧷 Cross ${game.subRoundIndex}/${SUB_ROUNDS_PER_ROUND} — care+mate ledger <strong>+${game.careMateLedgerPct}%pts</strong> on survival maths`,
+    kind: depleted ? 'warn' : 'good',
+    text: depleted
+      ? `🧷 Cross ${game.subRoundIndex}/${SUB_ROUNDS_PER_ROUND} — lab at <strong>${lab}</strong> (pooled round budget). Merge founders: starting life grants <strong>+${CROSS_LAB_STIPEND}</strong> resupply if still below ${CROSS_LAB_STIPEND}, or play <strong>gambit / monitor</strong> stages.`
+      : `🧷 Cross ${game.subRoundIndex}/${SUB_ROUNDS_PER_ROUND} — care+mate ledger <strong>+${game.careMateLedgerPct}%pts</strong> · lab <strong>${lab}/${RESOURCE_SOFT_CAP}</strong>`,
   };
   render();
+}
+
+async function finishStageReceipt() {
+  game.PHASE = 'cycling';
+  render();
+  await new Promise((r) => setTimeout(r, 420));
+  game.lifeSubStep = 'receipt';
+  triggerDevilIfNeeded();
+  setCoachForPhase('receipt', { resolve: game.LAST_RESOLVE });
+  game.PHASE = 'life';
+  render();
+}
+
+/** Monitor only — 0 lab, dice + forecast (weaker than full deploy) */
+async function resolveObserveLifeCycle() {
+  const pred = game.LIFE_PRED;
+  const ev = game.EVENT;
+  const h = game.HYBRID;
+  if (!pred || !ev || !h) return;
+
+  const fate = rollGambitFate(h.score);
+  game.lastGambitDice = fate;
+  const healthBefore = game.healthMeter;
+  const vit = applyGambitVitality(healthBefore, fate.rolled, pred);
+  game.healthMeter = vit.health;
+  const guessOk = vit.guessOk;
+  const pts = guessOk ? GAMBIT_FORECAST_PTS_OK : GAMBIT_FORECAST_PTS_MISS;
+  game.ST.points = clampPoints(game.ST.points + pts);
+  pushPredictionRow(pred, fate.rolled, pts);
+  checkAchievements(game, 'forecast');
+
+  game.LAST_RESOLVE = {
+    gambit: true,
+    observe: true,
+    resourceOk: true,
+    partialDeploy: true,
+    guessOk,
+    pts,
+    rolled: fate.rolled,
+    pred,
+    healthBefore,
+    healthAfter: game.healthMeter,
+    diceA: fate.diceA,
+    diceB: fate.diceB,
+    cohortWins: fate.cohortWins,
+    chosenName: 'Monitor Only',
+    revivalEligible: guessOk && pred === 'extinct' && fate.rolled === 'extinct' && game.healthMeter <= 0,
+    narrative: `You chose to watch rather than spend lab units. ${fate.cohortWins ? 'The cohort endured on its own.' : 'Nature pressed hard.'} ${fbNarrative(h.name, ev.name, fate.rolled, game.lifeStageIndex)}`,
+  };
+
+  logLifeBeat({
+    event: ev.name,
+    res: 'Monitor only',
+    out: fate.rolled,
+    detail: `observe · pts +${pts}`,
+  });
+  savePersisted();
+  await finishStageReceipt();
+}
+
+/** Gambit: no deploy — dice + forecast only */
+async function resolveGambitLifeCycle() {
+  const pred = game.LIFE_PRED;
+  const ev = game.EVENT;
+  const h = game.HYBRID;
+  if (!pred || !ev || !h) return;
+
+  const fate = rollGambitFate(h.score);
+  game.lastGambitDice = fate;
+  const healthBefore = game.healthMeter;
+  const vit = applyGambitVitality(healthBefore, fate.rolled, pred);
+  game.healthMeter = vit.health;
+  const guessOk = vit.guessOk;
+  const pts = guessOk ? GAMBIT_FORECAST_PTS_OK : GAMBIT_FORECAST_PTS_MISS;
+  game.ST.points = clampPoints(game.ST.points + pts);
+  pushPredictionRow(pred, fate.rolled, pts);
+  checkAchievements(game, 'forecast');
+
+  const diceNote = fate.cohortWins
+    ? `Nature's dice (${fate.fateRoll}% vs ${fate.threshold}%): the cohort held.`
+    : `Nature's dice (${fate.fateRoll}% vs ${fate.threshold}%): crisis won this beat.`;
+
+  game.LAST_RESOLVE = {
+    gambit: true,
+    resourceOk: null,
+    guessOk,
+    pts,
+    rolled: fate.rolled,
+    pred,
+    healthBefore,
+    healthAfter: game.healthMeter,
+    diceA: fate.diceA,
+    diceB: fate.diceB,
+    cohortWins: fate.cohortWins,
+    revivalEligible: guessOk && pred === 'extinct' && fate.rolled === 'extinct' && game.healthMeter <= 0,
+    narrative: `${diceNote} ${fbNarrative(h.name, ev.name, fate.rolled, game.lifeStageIndex)}`,
+  };
+
+  logLifeBeat({
+    event: ev.name,
+    res: 'Gambit (no deploy)',
+    out: fate.rolled,
+    detail: `gambit · pts +${pts} · dice ${fate.diceA}+${fate.diceB}`,
+  });
+  savePersisted();
+  await finishStageReceipt();
 }
 
 /** Resolve one life-stage beat */
 export async function resolveLifeCycle() {
   if (game.PHASE !== 'life' || !game.HYBRID || !game.EVENT) return;
+  syncGambitMode();
+
+  if (game.crossPassesRemaining < 1) {
+    showToast({ title: 'No deploy passes left', body: 'You exhausted passes for this animal cross.', variant: 'warn' }, 3600);
+    return;
+  }
+
+  if (game.gambitMode) {
+    if (isObserveDeploy(game.LIFE_RES)) {
+      if (!game.LIFE_PRED) {
+        showToast({ title: 'Forecast needed', body: 'Monitor mode still needs a survival forecast.', variant: 'warn' }, 3200);
+        return;
+      }
+      game.crossPassesRemaining -= 1;
+      await resolveObserveLifeCycle();
+      return;
+    }
+    if (!game.LIFE_PRED) {
+      showToast({ title: 'Forecast needed', body: 'Lab empty — pick how nature might treat this cohort.', variant: 'warn' }, 3200);
+      return;
+    }
+    game.crossPassesRemaining -= 1;
+    await resolveGambitLifeCycle();
+    return;
+  }
+
   const pred = game.LIFE_PRED;
   const chosenRes = game.LIFE_RES;
   if (!pred || !chosenRes) {
     showToast({ title: 'Choices needed', body: 'Pick both a deployable and one survival forecast.', variant: 'warn' }, 3200);
     return;
   }
-  if (game.crossPassesRemaining < 1) {
-    showToast({ title: 'No deploy passes left', body: 'You exhausted passes for this animal cross.', variant: 'warn' }, 3600);
+  if (!isObserveDeploy(chosenRes) && !canAffordDeploy(chosenRes, game.ST.resources)) {
+    showToast({ title: 'Cannot afford deploy', body: 'Lab resources too low — gambit mode only.', variant: 'warn' }, 3600);
+    syncGambitMode();
+    render();
     return;
   }
 
   game.crossPassesRemaining -= 1;
+  if (!isObserveDeploy(chosenRes)) deductDeployCost(chosenRes);
 
   const ev = game.EVENT;
+
+  if (isObserveDeploy(chosenRes)) {
+    await resolveObserveLifeCycle();
+    return;
+  }
+
   const correct = canonicalCorrectResource(ev);
-  const resourceOk = chosenRes.id === correct.id;
+  const resourceOk = isDeployCorrectForCrisis(ev, chosenRes, game.ST.resources);
+  trackDeployChoice(ev, chosenRes, resourceOk);
 
   if (!resourceOk) {
     const guessOk = pred === 'extinct';
     const pts = guessOk ? MATRIX_WR_RG : MATRIX_WR_WG;
+    const healthBefore = game.healthMeter;
     game.ST.points = clampPoints(game.ST.points + pts);
     pushPredictionRow(pred, 'extinct', pts);
     game.healthMeter = 0;
@@ -313,7 +813,13 @@ export async function resolveLifeCycle() {
       resourceOk: false,
       guessOk,
       pts,
+      pred,
+      rolled: 'extinct',
+      chosenName: chosenRes.name,
       correctName: correct.name,
+      healthBefore,
+      healthAfter: 0,
+      revivalEligible: guessOk,
       narrative: `${ev.name}: wrong deploy — cohort collapses. Correct lever would have been <strong>${correct.emoji} ${correct.name}</strong>.`,
     };
     logLifeBeat({
@@ -323,73 +829,75 @@ export async function resolveLifeCycle() {
       detail: `matrix wrong resource · pts ${pts}`,
     });
     savePersisted();
+    checkAchievements(game, 'forecast');
+    triggerDevilIfNeeded();
     game.PHASE = 'cycling';
     render();
     await new Promise((r) => setTimeout(r, 380));
-    advanceAfterSubRoundFailure();
+    game.lifeSubStep = 'receipt';
+    setCoachForPhase('receipt', { resolve: game.LAST_RESOLVE });
+    game.PHASE = 'life';
+    render();
     return;
   }
 
   const idx = game.lifeStageIndex - 1;
+  const partial = isImproviseDeploy(chosenRes);
   const rate = survivalRateLifeStage(ev, chosenRes, game.HYBRID, idx, game.careMateLedgerPct, 0);
   const dicePhase = dicePhaseForLifeStage(idx);
-  const rolled = rollOutcome(rate, {
+  const rawRoll = rollOutcome(rate, {
     dicePhase,
     sameSpeciesRenewal: !!game.HYBRID.sameSpeciesRenewal,
+    correctDeploy: !partial,
   });
-  const guessOk = pred === rolled;
+  const healthBefore = game.healthMeter;
+  const vitality = resolveStageVitality(healthBefore, rawRoll, pred, game.HYBRID.score);
+  game.healthMeter = vitality.health;
+  const rolled = vitality.rolled;
+  const guessOk = vitality.guessOk;
   const pts = guessOk ? MATRIX_RR_RG : MATRIX_RR_WG;
   game.ST.points = clampPoints(game.ST.points + pts);
   pushPredictionRow(pred, rolled, pts);
-
-  if (rolled === 'survive') {
-    game.healthMeter = Math.min(100, game.healthMeter + (guessOk ? 8 : 3));
-  } else if (rolled === 'damage') {
-    game.healthMeter -= guessOk ? 12 : 22;
-  } else {
-    game.healthMeter = 0;
-  }
+  checkAchievements(game, 'forecast');
 
   game.LAST_RESOLVE = {
     resourceOk: true,
+    partialDeploy: partial,
     guessOk,
     pts,
     rolled,
+    rawRoll: vitality.displayRoll,
+    foughtBack: vitality.foughtBack,
     rate,
+    pred,
+    healthBefore,
+    healthAfter: game.healthMeter,
+    revivalEligible: guessOk && pred === 'extinct' && rolled === 'extinct' && game.healthMeter <= 0,
     correctName: correct.name,
-    narrative: fbNarrative(game.HYBRID.name, ev.name, rolled, game.lifeStageIndex),
+    chosenName: chosenRes.name,
+    narrative: partial
+      ? `Improvised tools bought time — not perfect, but the line persists. ${fbNarrative(game.HYBRID.name, ev.name, rolled, game.lifeStageIndex, { foughtBack: vitality.foughtBack })}`
+      : fbNarrative(game.HYBRID.name, ev.name, rolled, game.lifeStageIndex, {
+          foughtBack: vitality.foughtBack,
+        }),
   };
+
+  const refund = applyStewardshipRefund(true, guessOk);
+  if (refund > 0) {
+    showToast(
+      { title: 'Stewardship dividend', body: `Lab recovered ${refund} unit — deploy and forecast aligned.`, variant: 'good' },
+      3600,
+    );
+  }
 
   logLifeBeat({
     event: ev.name,
     res: chosenRes.name,
     out: rolled,
-    detail: `matrix right resource · pts +${pts} · roll ${rolled}`,
+    detail: `matrix right resource · pts +${pts} · roll ${rolled}${vitality.foughtBack ? ' · fought back' : ''} · lab −${deployLabCost(chosenRes)}`,
   });
   savePersisted();
-
-  game.PHASE = 'cycling';
-  render();
-  await new Promise((r) => setTimeout(r, 420));
-
-  if (rolled === 'extinct' || game.healthMeter <= 0) {
-    game.NARR = game.LAST_RESOLVE.narrative;
-    advanceAfterSubRoundFailure();
-    return;
-  }
-
-  game.lifeStageIndex += 1;
-  if (game.lifeStageIndex > LIFE_STAGES_PER_SUBROUND) {
-    game.NARR = game.LAST_RESOLVE.narrative;
-    advanceAfterSubRoundSuccess();
-    return;
-  }
-
-  game.EVENT = rndEvent(game.EVENT?.id);
-  game.LIFE_RES = null;
-  game.LIFE_PRED = null;
-  game.PHASE = 'life';
-  render();
+  await finishStageReceipt();
 }
 
 export function continueAfterSubRound() {
@@ -399,6 +907,7 @@ export function continueAfterSubRound() {
 
 export function finishRoundSummary() {
   if (game.PHASE !== 'roundEnd') return;
+  checkAchievements(game, 'round_end');
   const br = game.ST.breedRound || 1;
   game.ST.breedRound = br >= 5 ? 1 : br + 1;
   resetRoundSession();

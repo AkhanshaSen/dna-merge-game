@@ -22,11 +22,14 @@ export function fbHybrid(foundA, foundB, score) {
   };
 }
 
-export function fbNarrative(hname, ename, outcome, cycle) {
+export function fbNarrative(hname, ename, outcome, cycle, opts = {}) {
+  if (opts.foughtBack) {
+    return `Stage ${cycle}: The ${ename} nearly breaks ${hname} — but your intervention holds. Scarred and depleted, the cohort <strong>refuses to collapse</strong> and staggers forward with vitality intact.`;
+  }
   const m = {
-    survive: `Cycle ${cycle}: Despite the ${ename} crisis, ${hname} demonstrates remarkable inherited resilience. The population weathers the pressure and stabilises.`,
-    damage: `Cycle ${cycle}: The ${ename} takes a heavy toll on ${hname}. The population survives but shows clear genetic stress — weaker individuals are lost.`,
-    extinct: `Cycle ${cycle}: The ${ename} delivers a fatal blow. Genetic weaknesses within ${hname}, combined with environmental pressure, prove unsurvivable.`,
+    survive: `Stage ${cycle}: Despite the ${ename}, ${hname} digs in — inherited resilience and your deploy buy another season of life.`,
+    damage: `Stage ${cycle}: The ${ename} wounds ${hname}. Individuals fall, yet the line endures — conservation is often triage, not triumph.`,
+    extinct: `Stage ${cycle}: Vitality finally fails. The ${ename} and accumulated stress overcome ${hname}; the experiment pauses here.`,
   };
   return m[outcome] || m.survive;
 }

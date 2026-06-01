@@ -10,6 +10,19 @@ import {
   continueAfterSubRound,
   finishRoundSummary,
   resetAll,
+  setLabFilter,
+  dismissTutorial,
+  dismissStageReceipt,
+  acceptExtinctionRevival,
+  declineExtinctionRevival,
+  triageAcceptDefect,
+  triageCureDefect,
+  pickCarePerk,
+  setRecordsFilter,
+  showTutorial,
+  tutorialNext,
+  tutorialPrev,
+  dismissDevil,
 } from './actions.js';
 import { game, resetSession, savePersisted, resetRoundSession } from './state.js';
 
@@ -31,9 +44,27 @@ Object.assign(window, {
   continueAfterSubRound,
   finishRoundSummary,
   resetAll,
+  setLabFilter,
+  dismissTutorial,
+  dismissStageReceipt,
+  acceptExtinctionRevival,
+  declineExtinctionRevival,
+  triageAcceptDefect,
+  triageCureDefect,
+  pickCarePerk,
+  setRecordsFilter,
+  showTutorial,
+  tutorialNext,
+  tutorialPrev,
+  dismissDevil,
   resetSession: uiResetSession,
   render,
 });
+
+if (!game.ST.tutorialDone) {
+  game.showTutorial = true;
+  game.tutorialStep = 0;
+}
 
 document.getElementById('tabs').addEventListener('click', (e) => {
   const tb = e.target.closest('.tb');
@@ -75,9 +106,63 @@ document.getElementById('main').addEventListener('click', (e) => {
     case 'reset-all-confirm':
       if (confirm('Reset ALL game data? Cannot be undone.')) resetAll();
       break;
+    case 'lab-filter':
+      setLabFilter(el.dataset.filter);
+      break;
+    case 'dismiss-receipt':
+      dismissStageReceipt();
+      break;
+    case 'accept-extinction-revival':
+      acceptExtinctionRevival();
+      break;
+    case 'decline-extinction-revival':
+      declineExtinctionRevival();
+      break;
+    case 'triage-accept':
+      triageAcceptDefect();
+      break;
+    case 'triage-cure':
+      triageCureDefect();
+      break;
+    case 'pick-care-perk':
+      pickCarePerk(el.dataset.perkId);
+      break;
+    case 'records-filter':
+      setRecordsFilter(el.dataset.recordsFilter);
+      break;
+    case 'tutorial-next':
+      tutorialNext();
+      break;
+    case 'tutorial-prev':
+      tutorialPrev();
+      break;
+    case 'tutorial-done':
+      dismissTutorial();
+      break;
+    case 'show-tutorial':
+      showTutorial();
+      break;
+    case 'dismiss-devil':
+      dismissDevil();
+      break;
     default:
       break;
   }
+});
+
+document.body.addEventListener('click', (e) => {
+  if (e.target.closest('#devil-root')) {
+    const el = e.target.closest('[data-action]');
+    if (el?.dataset.action === 'dismiss-devil') dismissDevil();
+    return;
+  }
+  if (!e.target.closest('#tutorial-root')) return;
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const { action } = el.dataset;
+  if (action === 'tutorial-next') tutorialNext();
+  else if (action === 'tutorial-prev') tutorialPrev();
+  else if (action === 'tutorial-done') dismissTutorial();
 });
 
 render();

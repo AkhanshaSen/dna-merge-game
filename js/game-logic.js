@@ -23,10 +23,40 @@ function lineageCycleBonus() {
   return Math.min(11, (G.CYCLE_DEPTH || 0) * 2);
 }
 
+/** UI: highlight deploy cards that synergise with active crisis */
+export function resourceSynergyMatch(ev, res) {
+  if (!ev || !res) return false;
+  return synergyBonus(ev, res) > 0;
+}
+
+/** Tag overlap gives softer synergy when explicit rules miss */
+function tagSynergyBonus(ev, res) {
+  const evTags = ev?.tags || [];
+  const resTags = res?.synergyTags || [];
+  if (!evTags.length || !resTags.length) return 0;
+  let n = 0;
+  for (const t of evTags) {
+    if (resTags.includes(t)) n += 4;
+  }
+  return Math.min(12, n);
+}
+
 export function synergyBonus(ev, res) {
   if (!ev || !res) return 0;
+  if (res.type === 'fallback' || res.type === 'observe') return 0;
   const rid = res.id;
   const evId = ev.id;
+  if (
+    rid === 'relocate' &&
+    (evId === 'habitat' || evId === 'seismic' || evId === 'flood' || evId === 'predator' || evId === 'invasive_plant')
+  )
+    return 9;
+  if (
+    rid === 'community' &&
+    (evId === 'human' || evId === 'illegal_trade' || evId === 'predator' || evId === 'habitat' || evId === 'invasive_plant')
+  )
+    return 8;
+  let bonus = 0;
   if (evId === 'disease' && rid === 'vaccine') return 12;
   if (evId === 'parasite_wave' && rid === 'vaccine') return 11;
   if ((evId === 'pollution' || evId === 'algal_bloom' || evId === 'mining') && rid === 'vaccine') return 10;
@@ -39,7 +69,8 @@ export function synergyBonus(ev, res) {
   if ((evId === 'fire' || evId === 'windstorm' || evId === 'cold_snap' || evId === 'heat_dome') && rid === 'shelter')
     return 9;
   if ((evId === 'drought' || evId === 'flood') && rid === 'shelter') return 8;
-  return 0;
+  bonus = tagSynergyBonus(ev, res);
+  return bonus;
 }
 
 /** Slot 3 mastery — flat synergy rider when any deploy is queued */
@@ -253,22 +284,105 @@ export function generateSecretKey() {
 }
 
 /**
- * Stochastic survival bands — jitter amplifies toward apex.
+ * Stochastic survival bands — correct deploy widens thrive window.
  * @param {'early'|'establishment'|'adaptation'|'apex'} opts.dicePhase
+ * @param {boolean} opts.correctDeploy Player chose synergy-aligned intervention
  */
 export function rollOutcome(rate, opts = {}) {
-  const { dicePhase = 'early', sameSpeciesRenewal = false } = opts;
-  let jitterAmp = dicePhase === 'apex' ? 14 : 12;
-  if (sameSpeciesRenewal) jitterAmp *= 0.76;
+  const { dicePhase = 'early', sameSpeciesRenewal = false, correctDeploy = false } = opts;
+  let jitterAmp = dicePhase === 'apex' ? 9 : 7;
+  if (sameSpeciesRenewal) jitterAmp *= 0.8;
+  if (correctDeploy) jitterAmp *= 0.75;
   const jitter = (Math.random() - 0.5) * jitterAmp;
-  let lateBias = 0;
-  if (dicePhase === 'apex') lateBias = 4 + Math.random() * 8;
-  else if (dicePhase === 'establishment') lateBias = 6 + Math.random() * 6;
-  const effective = Math.max(14, Math.min(93, rate + jitter + lateBias));
+  const careBonus = correctDeploy ? 6 : 0;
+  const renewalBonus = sameSpeciesRenewal ? 4 : 0;
+  const effective = Math.max(22, Math.min(92, rate + jitter + careBonus + renewalBonus));
   const roll = Math.random() * 100;
-  const surviveBand = effective * 0.74;
-  const damageBand = effective * 0.93;
+  const surviveMult = correctDeploy ? 0.8 : 0.74;
+  const damageMult = correctDeploy ? 0.97 : 0.92;
+  const surviveBand = effective * surviveMult;
+  const damageBand = effective * damageMult;
   if (roll < surviveBand) return 'survive';
   if (roll < damageBand) return 'damage';
   return 'extinct';
+}
+
+/**
+ * Apply vitality change from a stage roll. Correct deploy never zeroes health in one hit
+ * unless vitality was already critical — hybrids "fight back."
+ * @returns {{ rolled: string, foughtBack: boolean }}
+ */
+export function resolveStageVitality(healthBefore, rawRoll, pred, hybridScore = 50) {
+  const resilience = Math.min(12, Math.floor(hybridScore / 12));
+  let foughtBack = false;
+  let outcome = rawRoll;
+  let health = healthBefore;
+
+  if (rawRoll === 'survive') {
+    const guessOk = pred === 'survive';
+    health = Math.min(100, health + (guessOk ? 12 : 6));
+  } else if (rawRoll === 'damage') {
+    const guessOk = pred === 'damage';
+    health -= guessOk ? 10 : 16;
+  } else {
+    const critical = healthBefore <= 22;
+    if (!critical) {
+      health -= 26 - resilience;
+      if (health > 0) {
+        foughtBack = true;
+        outcome = 'damage';
+      } else {
+        health = 0;
+      }
+    } else {
+      health = 0;
+    }
+  }
+
+  health = Math.max(0, Math.min(100, Math.round(health)));
+  const guessOk = pred === outcome;
+  return { rolled: outcome, displayRoll: rawRoll, foughtBack, health, guessOk };
+}
+
+/**
+ * Gambit: no lab deploy — 50/50 nature vs cohort, then branch outcomes.
+ * @returns {{ cohortWins: boolean, rolled: string, diceA: number, diceB: number, narrativeKey: string }}
+ */
+export function rollGambitFate(hybridScore = 50) {
+  const tilt = Math.min(5, Math.max(-5, Math.floor((hybridScore - 50) / 10)));
+  const threshold = 50 - tilt;
+  const diceA = 1 + Math.floor(Math.random() * 6);
+  const diceB = 1 + Math.floor(Math.random() * 6);
+  const fateRoll = Math.random() * 100;
+  const cohortWins = fateRoll < threshold;
+
+  let rolled;
+  if (cohortWins) {
+    rolled = Math.random() < 0.7 ? 'survive' : 'damage';
+  } else {
+    rolled = Math.random() < 0.6 ? 'damage' : 'extinct';
+  }
+
+  return {
+    cohortWins,
+    rolled,
+    diceA,
+    diceB,
+    fateRoll: Math.round(fateRoll),
+    threshold: Math.round(threshold),
+  };
+}
+
+/** Apply gambit outcome to vitality (harsher than funded deploy path). */
+export function applyGambitVitality(healthBefore, rolled, pred) {
+  let health = healthBefore;
+  if (rolled === 'survive') {
+    health = Math.min(100, health + (pred === 'survive' ? 8 : 4));
+  } else if (rolled === 'damage') {
+    health -= pred === 'damage' ? 14 : 22;
+  } else {
+    health -= pred === 'extinct' ? 28 : 38;
+  }
+  health = Math.max(0, Math.min(100, Math.round(health)));
+  return { health, guessOk: pred === rolled };
 }
