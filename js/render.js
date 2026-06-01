@@ -18,6 +18,7 @@ import {
   REVIVAL_VITALITY,
   CROSS_LAB_STIPEND,
   MIN_LAB_FOR_DEPLOY,
+  FORECAST_WIN_ACCURACY,
 } from './constants.js';
 import {
   canAffordDeploy,
@@ -40,6 +41,18 @@ import {
   canAffordAnySynergyDeploy,
 } from './deploy-match.js';
 import { isRevivalEligible, revivalHintReason } from './extinction-revival.js';
+import {
+  gameProgressLabel,
+  gameProgressBannerHtml,
+  roundForecastStats,
+  roundCrossSummaryHtml,
+  gameEndVerdictMessage,
+} from './round-tracker.js';
+import { fbCrossEndUi } from './fallbacks.js';
+import { CROSS_TIER } from './cross-outcomes.js';
+import { gambitOddsPreview } from './game-logic.js';
+import { INTRO_STEPS, INTRO_STEP_COUNT, introStepIndex, nextGameNumber } from './game-intro.js';
+import { buildHistorySections, formatHistoryTs, stageFromRow } from './history-groups.js';
 
 const LAB_FILTERS = [
   { id: 'all', label: 'All' },
@@ -56,7 +69,7 @@ export function render() {
   renderRunStatus();
   renderStats();
   renderMain();
-  renderTutorialOverlay();
+  renderIntroOverlay();
   renderDevilModal();
 }
 
@@ -70,11 +83,24 @@ function renderRunStatus() {
   const lab = fmtRes(game.ST.resources);
   const est = estimatedDeploysLeft(game.ST.resources);
   const gambitTag = game.gambitMode ? `<span class="tag tag-devil">Gambit</span>` : '';
+  const gameLbl = game.roundActive
+    ? gameProgressLabel({ finalTag: false })
+    : game.gameAwaitingStart
+      ? 'No active game'
+      : '—';
+  const labTag = game.gameAwaitingStart
+    ? `Start → ${RESOURCE_SOFT_CAP} lab`
+    : `Lab ${lab}/${RESOURCE_SOFT_CAP} · ~${est} deploys`;
+  const startBtn = game.gameAwaitingStart
+    ? `<button type="button" class="btn-start-game" data-action="open-start-game">▶ Start Game</button>`
+    : '';
   el.innerHTML = `
+    ${startBtn}
+    <span class="tag tag-game">${gameLbl}</span>
     <span class="tag tag-p">Breed ${br}/5 · ${camp.label}</span>
     <span class="tag tag-b">Cross ${cross}</span>
     <span class="tag tag-a">Passes ${passes}</span>
-    <span class="tag tag-g">Lab ${lab}/${RESOURCE_SOFT_CAP} · ~${est} deploys</span>
+    <span class="tag tag-g">${labTag}</span>
     ${gambitTag}
     ${game.isDevilMarked ? '<span class="tag tag-devil">Devil mark</span>' : ''}`;
 }
@@ -138,17 +164,26 @@ function renderStats() {
     (game.HYBRID || game.PHASE === 'select' || game.PHASE === 'life');
 
   const track = showTrack
-    ? `<div class="cytrack anim-up">${pills}<div class="cybreedlbl">Round · Cross <strong>${sr || 1}</strong>/${SUB_ROUNDS_PER_ROUND}${miniLife} · Passes <strong>${game.crossPassesRemaining ?? 0}</strong></div></div>`
+    ? `<div class="cytrack anim-up">${pills}<div class="cybreedlbl">${game.roundActive ? gameProgressLabel() : 'Awaiting Start Game'}${miniLife} · Passes <strong>${game.crossPassesRemaining ?? 0}</strong></div></div>`
+    : '';
+
+  const labNum = game.gameAwaitingStart ? '—' : fmtRes(game.ST.resources);
+  const labPct = game.gameAwaitingStart
+    ? 0
+    : Math.round((Number(game.ST.resources) / RESOURCE_SOFT_CAP) * 100);
+  const labHint = game.gameAwaitingStart
+    ? `<div class="lab-idle-hint">Start Game → ${RESOURCE_SOFT_CAP} lab</div>`
     : '';
 
   document.getElementById('stats').innerHTML = `
     <div class="stats-group"><div class="stats-group-lbl">This run</div>
       <div class="stats-grid stats-grid-run">
         <div class="sc sb anim-up"><div class="n">${game.roundActive ? game.crossPassesRemaining ?? 0 : '—'}</div><div class="l">Deploy passes</div></div>
-        <div class="sc sa anim-up s1">
-          <div class="n">${fmtRes(game.ST.resources)}<span class="res-cap">/${RESOURCE_SOFT_CAP}</span></div>
+        <div class="sc sa anim-up s1${game.gameAwaitingStart ? ' sc-lab-idle' : ''}">
+          <div class="n">${labNum}<span class="res-cap">/${RESOURCE_SOFT_CAP}</span></div>
           <div class="l">🧪 Lab resources</div>
-          <div class="resource-meter"><div class="resource-meter-fill" style="width:${Math.round((Number(game.ST.resources) / RESOURCE_SOFT_CAP) * 100)}%"></div></div>
+          <div class="resource-meter"><div class="resource-meter-fill" style="width:${labPct}%"></div></div>
+          ${labHint}
         </div>
       </div>
     </div>
@@ -156,7 +191,7 @@ function renderStats() {
       <div class="stats-grid">
         <div class="sc sg anim-up"><div class="n">${game.ST.fame.length}</div><div class="l">🏆 Full lives</div></div>
         <div class="sc sr anim-up s1"><div class="n">${game.ST.extinctions.length}</div><div class="l">💀 Extinct</div></div>
-        <div class="sc sb anim-up s2"><div class="n">${acc}%</div><div class="l">🔮 Accuracy</div></div>
+        <div class="sc sb anim-up s2"><div class="n">${acc}%</div><div class="l">🔮 Guess-to-reality</div></div>
         <div class="sc spnts anim-up s3"><div class="n">${pts}</div><div class="l">⭐ Points</div></div>
       </div>
     </div>${track}`;
@@ -187,37 +222,48 @@ function renderMain() {
   else if (game.PHASE === 'roundEnd') renderRoundEnd(m);
 }
 
-function renderTutorialOverlay() {
+function renderIntroOverlay() {
   let root = document.getElementById('tutorial-root');
   if (!root) {
     root = document.createElement('div');
     root.id = 'tutorial-root';
     document.body.appendChild(root);
   }
-  const show = game.showTutorial && !game.ST.tutorialDone;
-  if (!show) {
+  if (!game.showIntro) {
     root.innerHTML = '';
     return;
   }
-  const steps = [
-    { title: 'Pick two founders', body: 'Slot A and B need the same class and realm, opposite sexes. Extinct pairs stay locked.' },
-    { title: 'Merge & preview genetics', body: 'Check the viability preview, then merge. Hybrids walk four life stages.' },
-    { title: 'Deploy + forecast', body: 'Match conservation deploys to crises (glowing cards = synergy). Forecast survive / damage / extinct.' },
-    { title: 'Campaign slots 1–5', body: 'Finish rounds to advance breed slots — each slot changes pressure and unlocks cryptic keys.' },
-  ];
-  const idx = game.tutorialStep || 0;
-  const step = steps[Math.min(idx, steps.length - 1)];
-  root.innerHTML = `<div class="tutorial-overlay anim-up">
-    <div class="tutorial-card">
-      <div class="tutorial-step">Guide ${idx + 1}/${steps.length}</div>
-      <div class="tutorial-title">${step.title}</div>
-      <div class="tutorial-body">${step.body}</div>
-      <div class="tutorial-actions">
-        ${idx > 0 ? '<button type="button" class="btn btn-s" data-action="tutorial-prev">Back</button>' : ''}
-        ${idx < steps.length - 1
-    ? '<button type="button" class="btn btn-p" data-action="tutorial-next">Next</button>'
-    : '<button type="button" class="btn btn-p" data-action="tutorial-done">Start playing</button>'}
-      </div>
+  const idx = introStepIndex();
+  const step = INTRO_STEPS[idx];
+  const gNum = nextGameNumber();
+  const dots = INTRO_STEPS.map((_, i) => `<span class="intro-dot${i === idx ? ' on' : ''}"></span>`).join('');
+  const actions = step.isStart
+    ? `<button type="button" class="btn btn-p btn-lg intro-pulse" data-action="start-game">Yes — begin Game ${gNum}</button>
+       <button type="button" class="btn btn-d" data-action="decline-start-game">Not now</button>`
+    : `${idx > 0 ? '<button type="button" class="btn btn-s" data-action="intro-prev">Back</button>' : ''}
+       <button type="button" class="btn btn-s" data-action="intro-skip">Skip to start</button>
+       <button type="button" class="btn btn-p" data-action="intro-next">Next</button>`;
+  root.innerHTML = `<div class="intro-overlay anim-up">
+    <div class="intro-card intro-card-step-${idx}">
+      <div class="intro-icon intro-pulse">${step.icon}</div>
+      <div class="intro-dots">${dots}</div>
+      <div class="intro-step-lbl">Step ${idx + 1} / ${INTRO_STEP_COUNT}</div>
+      <div class="intro-title">${step.title}</div>
+      <div class="intro-body">${step.body}</div>
+      <div class="intro-actions">${actions}</div>
+    </div>
+  </div>`;
+}
+
+function startGameHeroHtml() {
+  if (!game.gameAwaitingStart || game.roundActive) return '';
+  const gNum = nextGameNumber();
+  return `<div class="start-game-hero anim-up">
+    <div class="start-game-hero-title">Start Game?</div>
+    <p class="start-game-hero-copy">One Game = <strong>3 crosses</strong> · <strong>${RESOURCE_SOFT_CAP}</strong> shared lab units · deploy, forecast, survive. Be smart or risk extinction.</p>
+    <div class="start-game-hero-actions">
+      <button type="button" class="btn btn-p btn-lg" data-action="open-start-game">Yes — begin Game ${gNum}</button>
+      <button type="button" class="btn btn-s" data-action="decline-start-game">Not now — browse founders</button>
     </div>
   </div>`;
 }
@@ -306,13 +352,14 @@ function labEmptyCrossHintHtml() {
   const sr = game.subRoundIndex || 1;
   return `<div class="lab-resupply-banner anim-up">
     <span class="lab-resupply-kicker">Lab at zero — cross ${sr} still playable</span>
-    <p>Your <strong>${RESOURCE_SOFT_CAP} lab units</strong> are shared across the whole round. When you tap <strong>Merge → Begin life</strong>, field teams resupply to at least <strong>${CROSS_LAB_STIPEND}</strong> if you're below that. Until then you can still run <strong>gambit</strong> (forecast + dice) or <strong>Monitor Only</strong> (0 lab) on life stages.</p>
+    <p>Your <strong>${RESOURCE_SOFT_CAP} lab units</strong> are shared across the whole round. When you tap <strong>Merge → Begin life</strong>, field teams resupply to at least <strong>${CROSS_LAB_STIPEND}</strong> if you're below that. Until then you can still run <strong>gambit</strong> (forecast + dice) or <strong>Just Monitor</strong> (0 lab) on life stages.</p>
   </div>`;
 }
 
 function renderSelect(m) {
   const reason = mergeBlockReason(game.SEL_PARENT_A, game.SEL_PARENT_B, game.ST.extinctions);
-  const canMerge = game.SEL_PARENT_A && game.SEL_PARENT_B && !reason;
+  const canMerge =
+    game.roundActive && !game.gameAwaitingStart && game.SEL_PARENT_A && game.SEL_PARENT_B && !reason;
 
   const sections = SPECIES.filter(speciesPassesFilter)
     .map((sp) => {
@@ -322,8 +369,8 @@ function renderSelect(m) {
           const tempFound = { species: sp, individual: ind };
           const isA = game.SEL_PARENT_A?.individual.id === ind.id;
           const isB = game.SEL_PARENT_B?.individual.id === ind.id;
-          let locked = false;
-          if (game.SEL_PARENT_A && !isA) {
+          let locked = !!game.gameAwaitingStart;
+          if (game.SEL_PARENT_A && !isA && !game.gameAwaitingStart) {
             const probe = mergeBlockReason(game.SEL_PARENT_A, tempFound, game.ST.extinctions);
             if (
               probe &&
@@ -334,7 +381,7 @@ function renderSelect(m) {
             )
               locked = true;
           }
-          if (game.SEL_PARENT_B && !isB) {
+          if (game.SEL_PARENT_B && !isB && !game.gameAwaitingStart) {
             const probe = mergeBlockReason(tempFound, game.SEL_PARENT_B, game.ST.extinctions);
             if (
               probe &&
@@ -378,7 +425,8 @@ function renderSelect(m) {
     .join('');
 
   let mergeLabel = '🧬 Merge founders →';
-  if (reason) {
+  if (game.gameAwaitingStart) mergeLabel = '▶ Start Game first';
+  else if (reason) {
     if (reason.includes('Cross-class')) mergeLabel = '⛔ Different animal classes';
     else if (reason.includes('Realm clash')) mergeLabel = '🌊 Land vs water clash';
     else if (reason.includes('Breeding requires')) mergeLabel = '🚻 Need male + female';
@@ -389,11 +437,13 @@ function renderSelect(m) {
 
   m.innerHTML = `
     ${coachBanner()}
+    ${startGameHeroHtml()}
+    ${game.roundActive ? gameProgressBannerHtml() : ''}
     ${breedCampaignBanner(game.ST.breedRound ?? 1)}
-    <div class="lab-layout">
+    <div class="lab-layout${game.gameAwaitingStart ? ' lab-layout-locked' : ''}">
       <div class="lab-scroll">
         <div class="card gene-lab-card anim-up">
-          <div class="ctitle">Animal cross ${game.subRoundIndex}/${SUB_ROUNDS_PER_ROUND} — Choose founders</div>
+          <div class="ctitle">${game.roundActive ? gameProgressLabel() : 'Gene Lab'} — Choose founders</div>
           <p class="gene-lab-lede">
             Each <strong>round</strong> runs <strong>${SUB_ROUNDS_PER_ROUND} crosses</strong> with <strong>${ROUND_RESOURCE_PASSES}</strong> deploy passes (split <strong>${PASSES_PER_CROSS_SEQUENCE.join('+')}</strong>) and one shared <strong>${RESOURCE_SOFT_CAP}</strong> lab pool — not 5 lab per cross. Full natural life → <strong>+2 passes</strong> and <strong>+2 lab</strong>.
           </p>
@@ -492,22 +542,37 @@ function renderHybrid(m) {
   </div>`;
 }
 
-function gambitPanelHtml() {
+function gambitFateMeterHtml() {
+  const h = game.HYBRID;
+  const { cohortPct, naturePct, threshold } = gambitOddsPreview(h?.score ?? 50);
   const dice = game.lastGambitDice;
-  const faces = dice
-    ? `<div class="dice-strip anim-up"><span class="die die-a">${dice.diceA}</span><span class="die-plus">+</span><span class="die die-b">${dice.diceB}</span></div>`
-    : `<div class="dice-strip dice-idle"><span class="die die-tumble">?</span><span class="die-plus">·</span><span class="die die-tumble">?</span></div>`;
+  const meter = `<div class="gambit-fate-meter" role="img" aria-label="Cohort ${cohortPct}% versus nature ${naturePct}%">
+    <div class="gambit-fate-cohort" style="width:${cohortPct}%"><span>Cohort ${cohortPct}%</span></div>
+    <div class="gambit-fate-nature" style="width:${naturePct}%"><span>Nature ${naturePct}%</span></div>
+  </div>`;
+  const note = dice
+    ? `<div class="gambit-roll-result ${dice.cohortWins ? 'gambit-roll-win' : 'gambit-roll-loss'}">
+        <div class="gambit-roll-line">Fate roll <strong>${dice.fateRoll}</strong> vs gate <strong>${dice.threshold}%</strong> → <strong>${dice.cohortWins ? 'Cohort' : 'Nature'}</strong> steered the beat</div>
+        <div class="gambit-roll-line">Story dice ${dice.diceA} + ${dice.diceB} → outcome <strong>${dice.rolled}</strong></div>
+      </div>`
+    : `<p class="gambit-fate-note">On resolve: a <strong>d100</strong> roll under <strong>${threshold}%</strong> lets the cohort steer the outcome; otherwise nature prevails. Viability tilts the bar — not a flat 50/50.</p>
+      <div class="dice-strip dice-preview"><span class="die die-idle-face">d100</span><span class="die-plus">+</span><span class="die die-idle-face">🎲🎲</span></div>`;
+  return meter + note;
+}
+
+function gambitPanelHtml() {
   const observeOn = game.LIFE_RES?.id === 'observe';
   return `<div class="gambit-panel anim-up">
+    ${gameProgressBannerHtml({ compact: true })}
     <div class="gambit-title">Gambit — lab reserves empty</div>
-    <p class="gambit-copy">You cannot fund standard deploys. Pick a <strong>forecast</strong> and roll gambit dice — or choose <strong>Monitor Only</strong> (same dice, 0 lab).</p>
+    <p class="gambit-copy">You cannot fund standard deploys. Pick a <strong>forecast</strong> and roll fate on resolve — or choose <strong>Just Monitor</strong> (same odds, 0 lab).</p>
     <button type="button" class="cc deploy-observe${observeOn ? ' on' : ''}" data-action="pick-life-res" data-res-id="observe">
       <span class="lab-cost-badge lab-free">0 🧪</span>
       <span class="ci">👁️</span>
-      <div class="ctname">Monitor Only</div>
-      <div class="ccdesc">Save lab — watch and forecast without deploy bonus.</div>
+      <div class="ctname">Just Monitor</div>
+      <div class="ccdesc">0 lab — watch and forecast without deploy bonus.</div>
     </button>
-    ${faces}
+    ${gambitFateMeterHtml()}
     ${ethicalHintBlock('forecast')}
   </div>`;
 }
@@ -685,16 +750,24 @@ function renderLifePhase(m) {
     return;
   }
 
+  const gambit = game.gambitMode;
+  if (!gambit && game.LIFE_PRED && !game.LIFE_RES) game.LIFE_PRED = null;
+
   const stageIdx = Math.max(1, Math.min(LIFE_STAGES_PER_SUBROUND, game.lifeStageIndex || 1));
   const stageLabel = LIFE_STAGE_LABELS[stageIdx - 1];
   const labPool = game.ST.resources;
   const hasSynergy = crisisHasSynergyDeploys(ev);
   const affordSynergy = canAffordAnySynergyDeploy(ev, labPool);
   const showFallbackPath = !hasSynergy || !affordSynergy;
+  const showMonitor = stageIdx >= 2 || showFallbackPath;
   const deployTypes = new Set(['survival', 'fallback', 'observe']);
   const resCrds = RESOURCES.filter((r) => r.type !== 'cure' || game.HYBRID?.defect)
     .filter((r) => deployTypes.has(r.type))
-    .filter((r) => r.type !== 'fallback' && r.type !== 'observe' ? true : showFallbackPath)
+    .filter((r) => {
+      if (r.type === 'observe') return showMonitor;
+      if (r.type === 'fallback') return showFallbackPath;
+      return true;
+    })
     .map((r) => {
       const synBonus = synergyBonus(ev, r);
       const syn = resourceSynergyMatch(ev, r) || synBonus > 0;
@@ -719,7 +792,7 @@ function renderLifePhase(m) {
           : fallbackRec
             ? '<span class="synergy-tag">✦ best available</span>'
             : r.type === 'observe'
-              ? '<span class="synergy-tag observe-tag">0 lab</span>'
+              ? '<span class="synergy-tag observe-tag">0 lab · save resources</span>'
               : '';
       return `
     <button type="button" class="${cls}" ${action}>
@@ -740,21 +813,39 @@ function renderLifePhase(m) {
       ? `<div class="deploy-alt-banner warn">✦ synergy cards exist but lab is too low — <strong>Improvise</strong> (${deployLabCost(RESOURCES.find((x) => x.id === 'improvise'))} 🧪), <strong>Monitor</strong> (free), or save lab for later.</div>`
       : '';
 
+  const forecastLocked = !gambit && !game.LIFE_RES;
   const predOpts = [
     { k: 'survive', i: '✅', t: 'Adapts & survives' },
     { k: 'damage', i: '⚠️', t: 'Survives, damaged' },
     { k: 'extinct', i: '💀', t: 'Collapses' },
   ];
   const predBtns = predOpts
-    .map(
-      (o) =>
-        `<button type="button" class="pb${game.LIFE_PRED === o.k ? (o.k === 'survive' ? ' psy' : o.k === 'damage' ? ' psd' : ' pse') : ''}" data-action="pick-life-pred" data-pred="${o.k}">
+    .map((o) => {
+      const sel =
+        !forecastLocked && game.LIFE_PRED === o.k
+          ? o.k === 'survive'
+            ? ' psy'
+            : o.k === 'damage'
+              ? ' psd'
+              : ' pse'
+          : '';
+      const lockCls = forecastLocked ? ' pb-locked' : '';
+      const disabled = forecastLocked ? 'disabled' : '';
+      const action = forecastLocked ? '' : `data-action="pick-life-pred" data-pred="${o.k}"`;
+      return `<button type="button" class="pb${sel}${lockCls}" ${action} ${disabled}>
       <span class="pi">${o.i}</span><div class="pt">${o.t}</div>
-    </button>`,
-    )
+    </button>`;
+    })
     .join('');
+  const forecastGateHint = forecastLocked
+    ? '<p class="forecast-gate-hint">Select a deploy card above before forecasting.</p>'
+    : '';
 
-  const gambit = game.gambitMode;
+  const juvenileMonitorHint =
+    showMonitor && !showFallbackPath && stageIdx >= 2
+      ? `<div class="matrix-hint monitor-juvenile-hint">From <strong>Juvenile</strong> onward you can pick <strong>Just Monitor</strong> (0 lab) to save resources for later crises.</div>`
+      : '';
+
   const canGo = gambit
     ? game.LIFE_PRED && game.crossPassesRemaining >= 1
     : game.LIFE_RES && game.LIFE_PRED && game.crossPassesRemaining >= 1;
@@ -765,8 +856,9 @@ function renderLifePhase(m) {
     ${
       game.crossPassesRemaining < 1
         ? `<div class="warn">⚠️ No deploy passes left.</div>`
-        : `<div class="matrix-hint">Cards with ✦ synergy align with this crisis — each costs lab units (see badge). When nothing fits or you cannot pay, use <strong>Improvise</strong> or <strong>Monitor Only</strong>.</div>`
+        : `<div class="matrix-hint">Cards with ✦ synergy align with this crisis — each costs lab units (see badge). When nothing fits or you cannot pay, use <strong>Improvise</strong> or <strong>Just Monitor</strong>.</div>`
     }
+    ${juvenileMonitorHint}
     ${noSynergyBanner}
     <div class="cgrid">${resCrds}</div>
     ${outlookBarHtml()}`;
@@ -787,9 +879,10 @@ function renderLifePhase(m) {
 
   m.innerHTML = `<div class="card anim-up">
     ${coachBanner()}
+    ${gameProgressBannerHtml({ compact: true })}
     <div class="chdr">
       <div class="cbadge c2">${stageIdx}</div>
-      <div><div class="ctit">Life stage ${stageIdx}/${LIFE_STAGES_PER_SUBROUND} — ${stageLabel}</div><div class="csub">${h.name} · care+mate <strong>+${game.careMateLedgerPct}%pts</strong> · lab <strong>${fmtRes(game.ST.resources)}/${RESOURCE_SOFT_CAP}</strong></div></div>
+      <div><div class="ctit">Life stage ${stageIdx}/${LIFE_STAGES_PER_SUBROUND} — ${stageLabel}</div><div class="csub">${gameProgressLabel({ finalTag: false })} · ${h.name} · lab <strong>${fmtRes(game.ST.resources)}/${RESOURCE_SOFT_CAP}</strong></div></div>
     </div>
     ${lifeStageTimelineHtml(stageIdx)}
     ${traitBarsHtml(h.traits)}
@@ -817,6 +910,7 @@ function renderLifePhase(m) {
     ${deploySection}
     <div class="div">${gambit ? 'Your forecast' : '2 · Survival forecast'}</div>
     ${gambit ? '' : ethicalHintBlock('forecast')}
+    ${forecastGateHint}
     <div class="prow">${predBtns}</div>
     <button type="button" class="btn btn-p btn-blk btn-lg" data-action="resolve-life-cycle" ${canGo ? '' : 'disabled'}>
       ${game.crossPassesRemaining < 1 ? 'No passes left' : resolveLabel}
@@ -825,17 +919,20 @@ function renderLifePhase(m) {
 }
 
 function renderSubRoundEnd(m) {
-  const ext = game.HYBRID?.outcome === 'extinct';
-  const banCls = ext ? 'ob-e' : 'ob-s';
-  const em = ext ? '💀' : '🌟';
-  const tit = ext ? `${game.HYBRID?.name || 'Line'} — cross ended` : `${game.HYBRID?.name || 'Line'} — full natural life`;
+  const tier = game.crossEndTier || (game.HYBRID?.outcome === 'extinct' ? CROSS_TIER.EXTINCT : CROSS_TIER.FULL_LIFE);
+  const name = game.HYBRID?.name || 'Line';
+  const ui = fbCrossEndUi(name, tier);
+  const titCls =
+    tier === CROSS_TIER.FULL_LIFE ? 'cg' : tier === CROSS_TIER.EXTINCT || tier === CROSS_TIER.WOUNDED_END ? 'cr' : 'cw';
+  const narrCls =
+    tier === CROSS_TIER.FULL_LIFE ? 'ng' : tier === CROSS_TIER.EXTINCT || tier === CROSS_TIER.WOUNDED_END ? 'nr' : 'nw';
   m.innerHTML = `
-    <div class="obanner ${banCls}">
-      <span class="oem">${em}</span>
-      <div class="otit ${ext ? 'cr' : 'cg'}">${tit}</div>
-      <div class="osub">${ext ? 'Vitality reached zero — the line could fight no longer. Your deploys and forecasts still shaped how long they lasted.' : 'Care+mate legacy unlocked for remaining crosses this round.'}</div>
+    <div class="obanner ${ui.bannerCls}">
+      <span class="oem">${ui.emoji}</span>
+      <div class="otit ${titCls}">${ui.title}</div>
+      <div class="osub">${ui.subtitle}</div>
     </div>
-    ${game.FINAL_NARR ? `<div class="narr ${ext ? 'nr' : 'ng'} anim-up s1">${game.FINAL_NARR}</div>` : ''}
+    ${game.FINAL_NARR ? `<div class="narr ${narrCls} anim-up s1">${game.FINAL_NARR}</div>` : ''}
     <button type="button" class="btn btn-p btn-lg" data-action="continue-sub-round">${game.subRoundIndex >= SUB_ROUNDS_PER_ROUND ? 'See round summary →' : 'Next animal cross →'}</button>`;
 }
 
@@ -843,15 +940,38 @@ function renderRoundEnd(m) {
   const gained = Math.floor((game.ST.points || 0) - (game.roundPointsSnapshot || 0));
   const br = game.ST.breedRound ?? 1;
   const camp = campaignForSlot(br);
+  const g = game.roundNumber || 1;
+  const fc = roundForecastStats();
+  const verdictCls = fc.isWinner ? 'round-verdict-winner' : 'round-verdict-loser';
+  const verdictLabel = fc.total === 0 ? 'No forecasts' : fc.isWinner ? '🏆 Winner' : '💀 Loser';
+  const verdictNote =
+    fc.total === 0
+      ? 'Make survival forecasts during life stages to score guess-to-reality. Winner also needs at least one full-life cross.'
+      : fc.isWinner
+        ? `Guess-to-reality <strong>${fc.pct}%</strong> — above ${fc.threshold}% with <strong>${fc.fullLife}</strong> full-life cross${fc.fullLife === 1 ? '' : 'es'}.`
+        : `Guess-to-reality <strong>${fc.pct}%</strong> — need more than ${fc.threshold}% and at least one full-life cross to win.`;
+  const gameVerdict = gameEndVerdictMessage();
   m.innerHTML = `
-    <div class="card anim-up">
-      <div class="ctitle">🏁 Round complete</div>
+    <div class="card anim-up round-end-card">
+      <div class="game-progress game-progress-end anim-up">
+        <span class="game-progress-kicker">Game complete</span>
+        <span class="game-progress-title">Game ${g} — all ${SUB_ROUNDS_PER_ROUND} crosses</span>
+      </div>
+      <div class="ctitle">🏁 Game ${g} summary</div>
       ${breedCampaignBanner(br)}
+      <div class="round-verdict ${verdictCls} anim-up">
+        <div class="round-verdict-label">${verdictLabel}</div>
+        <div class="round-verdict-pct">${fc.total ? `${fc.pct}%` : '—'}</div>
+        <div class="round-verdict-sub">Guess-to-reality · ${fc.correct}/${fc.total} forecasts matched</div>
+        <p class="round-verdict-note">${verdictNote}</p>
+        <p class="round-verdict-story anim-up s1">${gameVerdict}</p>
+      </div>
+      <div class="div">Cross outcomes</div>
+      ${roundCrossSummaryHtml()}
       <p class="round-summary">
-        Finished <strong>${SUB_ROUNDS_PER_ROUND}</strong> crosses.<br/>
-        Points this round: <strong class="round-pts">${gained >= 0 ? '+' : ''}${gained}</strong>
+        Points this game: <strong class="round-pts">${gained >= 0 ? '+' : ''}${gained}</strong>
         · Lifetime: <strong>${Math.floor(Number(game.ST.points) || 0)}</strong><br/>
-        Next campaign: <strong>${camp.label}</strong> — ${camp.desc}
+        Next campaign slot: <strong>${camp.label}</strong> — ${camp.desc}
       </p>
       <button type="button" class="btn btn-p btn-lg" data-action="finish-round">Return to Gene Lab · advance breed slot →</button>
     </div>`;
@@ -939,53 +1059,135 @@ function sparklineFromLog() {
   return `<div class="sparkline" title="Recent stage outcomes">${bars}</div>`;
 }
 
-function renderHistory(m) {
-  const preds = Array.isArray(game.ST.predictions) ? game.ST.predictions : [];
-  const cor = preds.filter((p) => p.ok).length;
-  const acc = preds.length ? Math.round((cor / preds.length) * 100) : 0;
-  const pRows = preds.length
-    ? [...preds]
-        .reverse()
-        .map(
-          (p) => `<div class="hrow">
-        <span>${p.ok ? '✅' : '❌'}</span>
-        <div class="hrow-info">
-          <div class="hrow-nm">${p.name}</div>
-          <div class="hrow-dt">Predicted: ${p.pred} · Actual: ${p.actual}${typeof p.pts === 'number' ? ` · pts ${p.pts > 0 ? '+' : ''}${p.pts}` : ''}</div>
-        </div>
-      </div>`,
-        )
-        .join('')
-    : `<div class="empty"><span class="eic">🔮</span><div class="etx">No forecasts logged yet</div></div>`;
-  const lRows = game.ST.log.length
-    ? [...game.ST.log]
-        .reverse()
-        .slice(0, 40)
-        .map((l) => {
-          const oc =
-            l.out === 'survive' ? 'var(--green)' : l.out === 'damage' ? 'var(--amber)' : 'var(--red)';
-          return `<div class="lrow">
-        <div class="lnm">${l.name} — Stage ${l.cycle}</div>
-        <div class="ldt">${l.event} → <strong class="outcome-dynamic" style="color:${oc}">${l.out}</strong>${l.res && l.res !== 'None' ? ' · ' + l.res : ''}</div>
-      </div>`;
-        })
-        .join('')
-    : `<div class="empty"><span class="eic">📋</span><div class="etx">No cycles logged yet</div></div>`;
-
-  m.innerHTML = `
-    <div class="card anim-up">
-      <div class="ctitle">🔮 Forecast history (${preds.length})</div>
-      ${preds.length ? `<div class="acc-bar-wrap ratew">
-        <div class="rateh"><span class="ratel">Overall accuracy</span><span class="ratep" style="color:${scoreColor(acc)}">${acc}%</span></div>
-        <div class="ratetr"><div class="ratefill" style="width:${acc}%;background:${scoreColor(acc)}"></div></div>
-      </div>` : ''}
-      ${sparklineFromLog()}
-      <div class="history-scroll">${pRows}</div>
+function historyForecastRow(p) {
+  const ts = p.ts ? `<span class="history-ts">${formatHistoryTs(p.ts)}</span>` : '';
+  return `<div class="hrow">
+    <span>${p.ok ? '✅' : '❌'}</span>
+    <div class="hrow-info">
+      <div class="hrow-nm">${p.name}${ts}</div>
+      <div class="hrow-dt">Predicted: ${p.pred} · Actual: ${p.actual}${typeof p.pts === 'number' ? ` · pts ${p.pts > 0 ? '+' : ''}${p.pts}` : ''}</div>
     </div>
-    <div class="card anim-up s2">
-      <div class="ctitle">📋 Life-stage log (${game.ST.log.length})</div>
-      <div class="history-scroll history-scroll-lg">${lRows}</div>
-    </div>`;
+  </div>`;
+}
+
+function historyLogRow(l) {
+  const oc = l.out === 'survive' ? 'var(--green)' : l.out === 'damage' ? 'var(--amber)' : 'var(--red)';
+  const stage = stageFromRow(l);
+  const ts = l.ts ? `<span class="history-ts">${formatHistoryTs(l.ts)}</span>` : '';
+  return `<div class="lrow">
+    <div class="lnm">${l.name} — Stage ${stage}${ts}</div>
+    <div class="ldt">${l.event} → <strong class="outcome-dynamic" style="color:${oc}">${l.out}</strong>${l.res && l.res !== 'None' ? ' · ' + l.res : ''}</div>
+  </div>`;
+}
+
+function historyCrossBlock(crossIndex, preds, logs, crossResults) {
+  const pr = preds || [];
+  const lg = logs || [];
+  if (!pr.length && !lg.length) return '';
+  const cr = (crossResults || []).find((r) => r.crossIndex === crossIndex);
+  const tierNote = cr
+    ? `<span class="history-cross-tier">${cr.fullLife ? 'Full natural life' : cr.tier === 'extinct' ? 'Extinct' : cr.tier === 'woundedEnd' ? 'Collapsed at old age' : cr.tier === 'partialArc' ? 'Arc finished' : 'Cross ended'}</span>`
+    : '';
+  const forecastHtml = pr.length
+    ? pr.map(historyForecastRow).join('')
+    : `<p class="history-cross-empty">No forecasts this cross.</p>`;
+  const logHtml = lg.length ? lg.map(historyLogRow).join('') : '';
+  return `<div class="history-cross-block">
+    <div class="history-cross-hdr">Cross ${crossIndex}${tierNote}</div>
+    <div class="history-cross-lbl">Forecasts</div>
+    ${forecastHtml}
+    ${logHtml ? `<div class="history-cross-lbl">Life stages</div>${logHtml}` : ''}
+  </div>`;
+}
+
+function historyGameCard(section) {
+  const pct = section.forecastPct ?? 0;
+  const total = section.forecastTotal ?? 0;
+  const correct = section.forecastCorrect ?? 0;
+  const started = section.startedAt ? formatHistoryTs(section.startedAt) : '—';
+  const ended = section.inProgress ? 'In progress' : section.completedAt ? formatHistoryTs(section.completedAt) : '—';
+  const verdict =
+    !section.inProgress && total > 0
+      ? section.isWinner
+        ? '<span class="history-verdict history-verdict-win">Winner</span>'
+        : '<span class="history-verdict history-verdict-lose">Loser</span>'
+      : '';
+  const imperfect = (section.partialArc || 0) + (section.woundedEnd || 0);
+  const pills = `<div class="history-game-pills">
+    <span class="round-cross-pill round-cross-pill-good">${section.fullLife || 0} full life</span>
+    <span class="round-cross-pill round-cross-pill-warn">${imperfect} imperfect</span>
+    <span class="round-cross-pill round-cross-pill-bad">${section.extinct || 0} extinct</span>
+  </div>`;
+  const crossHtml = [1, 2, 3]
+    .map((c) =>
+      historyCrossBlock(
+        c,
+        section.predictionsByCross?.[c],
+        section.logByCross?.[c],
+        section.crossResults,
+      ),
+    )
+    .join('');
+  return `<div class="card anim-up history-game-card">
+    <div class="history-game-hdr">
+      <div class="history-game-title">Game ${section.gameNumber}${section.inProgress ? ' <span class="history-in-progress">· live</span>' : ''}</div>
+      <div class="history-game-meta">Started ${started}${section.inProgress ? '' : ` · Completed ${ended}`}</div>
+    </div>
+    <div class="acc-bar-wrap ratew">
+      <div class="rateh">
+        <span class="ratel">Guess-to-reality</span>
+        <span class="ratep" style="color:${scoreColor(pct)}">${total ? `${pct}%` : '—'}</span>
+        ${verdict}
+      </div>
+      <div class="ratetr"><div class="ratefill" style="width:${pct}%;background:${scoreColor(pct)}"></div></div>
+      <div class="history-game-sub">${total ? `${correct}/${total} forecasts matched` : 'No forecasts yet'}</div>
+    </div>
+    ${pills}
+    <div class="history-game-body">${crossHtml || '<p class="history-cross-empty">No stage data yet for this game.</p>'}</div>
+  </div>`;
+}
+
+function historyLegacyCard(legacy) {
+  const pRows = legacy.predictions.length
+    ? legacy.predictions.map(historyForecastRow).join('')
+    : `<div class="empty"><span class="eic">🔮</span><div class="etx">No legacy forecasts</div></div>`;
+  const lRows = legacy.log.length
+    ? legacy.log.map(historyLogRow).join('')
+    : `<div class="empty"><span class="eic">📋</span><div class="etx">No legacy log entries</div></div>`;
+  return `<div class="card anim-up history-legacy">
+    <div class="ctitle">📦 Earlier sessions</div>
+    <p class="history-legacy-note">Records from before game grouping — no dates attached.</p>
+    <div class="div">Forecasts</div>
+    <div class="history-scroll">${pRows}</div>
+    <div class="div">Life-stage log</div>
+    <div class="history-scroll history-scroll-lg">${lRows}</div>
+  </div>`;
+}
+
+function renderHistory(m) {
+  const { lifetime, games, legacy } = buildHistorySections(game.ST, game);
+  const acc = lifetime.pct;
+  const hasLegacy = legacy && (legacy.predictions.length || legacy.log.length);
+
+  const lifetimeCard = `<div class="card anim-up">
+    <div class="ctitle">🔮 Lifetime guess-to-reality</div>
+    ${
+      lifetime.total
+        ? `<div class="acc-bar-wrap ratew">
+      <div class="rateh"><span class="ratel">All games</span><span class="ratep" style="color:${scoreColor(acc)}">${acc}%</span></div>
+      <div class="ratetr"><div class="ratefill" style="width:${acc}%;background:${scoreColor(acc)}"></div></div>
+      <div class="history-game-sub">${lifetime.correct}/${lifetime.total} forecasts matched${hasLegacy ? ' · includes earlier sessions' : ''}</div>
+    </div>`
+        : `<div class="empty"><span class="eic">🔮</span><div class="etx">No forecasts logged yet</div></div>`
+    }
+    ${lifetime.total ? sparklineFromLog() : ''}
+    <p class="history-hint">Per-game winner needs <strong>&gt;${FORECAST_WIN_ACCURACY}%</strong> guess-to-reality and at least one full-life cross.</p>
+  </div>`;
+
+  const gameCards = games.length ? games.map(historyGameCard).join('') : '';
+  const legacyCard = legacy ? historyLegacyCard(legacy) : '';
+
+  m.innerHTML = `${lifetimeCard}${gameCards}${legacyCard}`;
 }
 
 export function renderSettings(m) {

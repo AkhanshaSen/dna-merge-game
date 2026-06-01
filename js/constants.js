@@ -1,6 +1,6 @@
 /** Economy tuning */
 export const RESOURCE_SOFT_CAP = 15;
-export const RESOURCE_START_DEFAULT = 9;
+export const RESOURCE_START_DEFAULT = 15;
 export const MIN_LAB_FOR_DEPLOY = 1;
 export const GAMBIT_FORECAST_PTS_OK = 5;
 export const GAMBIT_FORECAST_PTS_MISS = 1;
@@ -13,6 +13,12 @@ export const REVIVAL_LAB_BONUS = 4;
 export const REVIVAL_VITALITY = 40;
 /** Top up shared lab pool to at least this when each new cross begins (cap still 15) */
 export const CROSS_LAB_STIPEND = 4;
+/** Guess-to-reality % above this at game end → Winner */
+export const FORECAST_WIN_ACCURACY = 75;
+/** Min correct forecasts in a cross (of 4) for full-life stewardship tier */
+export const CROSS_FORECAST_MIN_CORRECT = 3;
+/** Lump-sum points only when cross earns fullLife tier */
+export const CROSS_STEWARDSHIP_BONUS_PTS = 15;
 
 /** Meta-round: three crosses (sub-rounds), each cross runs four life-stage beats */
 export const SUB_ROUNDS_PER_ROUND = 3;
@@ -100,7 +106,7 @@ export const RESOURCES = [
   { id: 'relocate', emoji: '🦌', name: 'Wildlife Corridor', desc: 'Temporary migration routes away from the worst pressure.', effect: '+14 survival bonus', bonus: 14, type: 'survival', synergyTags: ['habitat', 'patrol'], labCost: 1.5 },
   { id: 'community', emoji: '🤝', name: 'Community Ranger Network', desc: 'Local stewards report threats and guide animals through pinch-points.', effect: '+13 survival bonus', bonus: 13, type: 'survival', synergyTags: ['patrol', 'habitat'], labCost: 1.2 },
   { id: 'improvise', emoji: '🧰', name: 'Improvised Field Response', desc: 'Scrap together the best available tools — not ideal, but better than nothing.', effect: '+8 partial bonus · valid when no ✦ match', bonus: 8, type: 'fallback', synergyTags: [], labCost: 0.5 },
-  { id: 'observe', emoji: '👁️', name: 'Monitor Only (no deploy)', desc: 'Save lab units — watch, forecast, and let the cohort face nature with minimal help.', effect: 'Forecast + fate dice · no deploy bonus', bonus: 0, type: 'observe', synergyTags: [], labCost: 0 },
+  { id: 'observe', emoji: '👁️', name: 'Just Monitor', desc: 'Spend 0 lab — watch, forecast, and let the cohort face nature. Save resources for later life stages.', effect: 'Forecast + fate dice · no deploy bonus', bonus: 0, type: 'observe', synergyTags: [], labCost: 0 },
 ];
 
 /** Genetic defect templates */

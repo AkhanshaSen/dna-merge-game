@@ -63,7 +63,7 @@ export function isDeployCorrectForCrisis(ev, chosenRes, resources) {
 export function crisisDeployHintText(ev) {
   const rec = recommendedDeploysForCrisis(ev);
   if (!rec.length) {
-    return 'No standard deploy fits — use <strong>Improvised Field Response</strong> or <strong>Monitor Only</strong>.';
+    return 'No standard deploy fits — use <strong>Improvised Field Response</strong> or <strong>Just Monitor</strong>.';
   }
   const names = rec
     .slice(0, 4)

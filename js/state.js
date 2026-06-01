@@ -45,9 +45,11 @@ export const game = {
   /** life sub-step: null | receipt | triage | care */
   lifeSubStep: null,
 
-  /** Shown once per session until dismissed */
-  showTutorial: false,
-  tutorialStep: 0,
+  /** Intro / start-game overlay */
+  showIntro: false,
+  introStep: 0,
+  /** Player must confirm Start Game before merge (lobby) */
+  gameAwaitingStart: true,
   recordsFilter: 'all',
 
   DEF_PENALTY: 0,
@@ -63,6 +65,10 @@ export const game = {
   lastGambitDice: null,
   /** One extinction-revival per animal cross */
   revivalUsedThisCross: false,
+  /** Cross outcomes for the active game (round) */
+  roundCrossResults: [],
+  /** Index into ST.predictions where this game began */
+  roundPredictionsStartIndex: 0,
 };
 
 export function reloadPersistedState() {
@@ -89,6 +95,7 @@ export function resetCrossSession() {
   game.gambitMode = false;
   game.lastGambitDice = null;
   game.revivalUsedThisCross = false;
+  game.crossEndTier = null;
 }
 
 /** Cleared when finishing a meta-round summary */
@@ -105,6 +112,9 @@ export function resetRoundSession() {
   game.isDevilMarked = false;
   game.showDevilModal = false;
   game.gambitMode = false;
+  game.gameAwaitingStart = true;
+  game.showIntro = false;
+  game.introStep = 0;
 }
 
 export function resetSession() {

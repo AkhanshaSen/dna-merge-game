@@ -20,17 +20,34 @@ import {
   pickCarePerk,
   setRecordsFilter,
   showTutorial,
-  tutorialNext,
-  tutorialPrev,
+  introNext,
+  introPrev,
+  introSkipToStart,
+  confirmStartGame,
+  cancelStartGame,
+  openStartGamePrompt,
   dismissDevil,
 } from './actions.js';
 import { game, resetSession, savePersisted, resetRoundSession } from './state.js';
+import { setCoachForPhase } from './coach-hints.js';
 
 function uiResetSession() {
   resetRoundSession();
   resetSession();
   savePersisted();
   render();
+}
+
+function initLobby() {
+  if (!game.roundActive) game.gameAwaitingStart = true;
+  if (!game.ST.tutorialDone) {
+    game.showIntro = true;
+    game.introStep = 0;
+  } else if (game.gameAwaitingStart) {
+    game.showIntro = true;
+    game.introStep = 4;
+  }
+  setCoachForPhase(game.gameAwaitingStart ? 'lobby' : 'select');
 }
 
 Object.assign(window, {
@@ -54,17 +71,18 @@ Object.assign(window, {
   pickCarePerk,
   setRecordsFilter,
   showTutorial,
-  tutorialNext,
-  tutorialPrev,
+  introNext,
+  introPrev,
+  introSkipToStart,
+  confirmStartGame,
+  cancelStartGame,
+  openStartGamePrompt,
   dismissDevil,
   resetSession: uiResetSession,
   render,
 });
 
-if (!game.ST.tutorialDone) {
-  game.showTutorial = true;
-  game.tutorialStep = 0;
-}
+initLobby();
 
 document.getElementById('tabs').addEventListener('click', (e) => {
   const tb = e.target.closest('.tb');
@@ -130,14 +148,23 @@ document.getElementById('main').addEventListener('click', (e) => {
     case 'records-filter':
       setRecordsFilter(el.dataset.recordsFilter);
       break;
-    case 'tutorial-next':
-      tutorialNext();
+    case 'intro-next':
+      introNext();
       break;
-    case 'tutorial-prev':
-      tutorialPrev();
+    case 'intro-prev':
+      introPrev();
       break;
-    case 'tutorial-done':
-      dismissTutorial();
+    case 'intro-skip':
+      introSkipToStart();
+      break;
+    case 'start-game':
+      confirmStartGame();
+      break;
+    case 'decline-start-game':
+      cancelStartGame();
+      break;
+    case 'open-start-game':
+      openStartGamePrompt();
       break;
     case 'show-tutorial':
       showTutorial();
@@ -160,9 +187,11 @@ document.body.addEventListener('click', (e) => {
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const { action } = el.dataset;
-  if (action === 'tutorial-next') tutorialNext();
-  else if (action === 'tutorial-prev') tutorialPrev();
-  else if (action === 'tutorial-done') dismissTutorial();
+  if (action === 'intro-next') introNext();
+  else if (action === 'intro-prev') introPrev();
+  else if (action === 'intro-skip') introSkipToStart();
+  else if (action === 'start-game') confirmStartGame();
+  else if (action === 'decline-start-game') cancelStartGame();
 });
 
 render();

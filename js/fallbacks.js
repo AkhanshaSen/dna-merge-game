@@ -52,3 +52,72 @@ export function fbVerdict(hname, outcome) {
     return `${hname} persists in a fragile, reduced state. Without further intervention, long-term viability remains deeply uncertain.`;
   return `${hname} has gone extinct. Incompatibilities within this breeding experiment proved insurmountable. This unique cohort is lost forever.`;
 }
+
+const CROSS_END_UI = {
+  fullLife: {
+    title: (n) => `${n} — full natural life`,
+    subtitle: 'All four stages · vitality held · forecasts earned stewardship legacy.',
+    banner: 'ob-s',
+    emoji: '🌟',
+  },
+  partialArc: {
+    title: (n) => `${n} — arc finished`,
+    subtitle: 'Four life stages walked, but forecasts fell short — no full-life legacy this cross.',
+    banner: 'ob-warn',
+    emoji: '⚠️',
+  },
+  woundedEnd: {
+    title: (n) => `${n} — collapsed at old age`,
+    subtitle: 'Nature rolled extinction on the final beat — not a complete natural life.',
+    banner: 'ob-warn',
+    emoji: '💀',
+  },
+  extinct: {
+    title: (n) => `${n} — cross ended`,
+    subtitle: 'Vitality failed or deploys misaligned — the line could not be sustained.',
+    banner: 'ob-e',
+    emoji: '💀',
+  },
+};
+
+export function fbCrossEndUi(name, tier) {
+  const ui = CROSS_END_UI[tier] || CROSS_END_UI.extinct;
+  return {
+    title: ui.title(name),
+    subtitle: ui.subtitle,
+    bannerCls: ui.banner,
+    emoji: ui.emoji,
+  };
+}
+
+export function fbCrossEndNarr(name, tier, forecast, rolled) {
+  const { correct, total } = forecast;
+  const fc = total ? `${correct}/${total} forecasts matched` : 'no forecast record';
+  if (tier === 'fullLife') {
+    return `You read the wild well enough — all four beats, ${fc}. <strong>${name}</strong> earns care+mate legacy and bonus passes for later crosses this game.`;
+  }
+  if (tier === 'partialArc') {
+    return `Four stages complete and vitality remained, but only <strong>${correct}/${total || 4}</strong> forecasts matched. ${name} does <strong>not</strong> count as a full natural life — no fame or legacy bonuses.`;
+  }
+  if (tier === 'woundedEnd') {
+    return `Old age brought collapse — the final outcome was <strong>${rolled}</strong> (${fc}) even though some vitality lingered. This is not a success arc; stewardship bonuses are withheld.`;
+  }
+  return fbVerdict(name, 'extinct');
+}
+
+export function fbGameEndVerdict(stats) {
+  const { fullLifeN, partialN, woundedN, extinctN, forecastPct, isWinner } = stats;
+  if (isWinner) {
+    return `Stewardship earned: <strong>${fullLifeN}</strong> full-life cross${fullLifeN === 1 ? '' : 'es'}, guess-to-reality <strong>${forecastPct}%</strong>. You read the wild and kept lines alive.`;
+  }
+  if (fullLifeN >= 2 && forecastPct >= 50) {
+    return `Mixed ledger — <strong>${fullLifeN}</strong> full lives, <strong>${partialN + woundedN + extinctN}</strong> imperfect crosses. Forecast skill was uneven (${forecastPct}%).`;
+  }
+  if (extinctN >= 2) {
+    return `The ledger closes heavy — <strong>${extinctN}</strong> lines lost, only <strong>${fullLifeN}</strong> full natural life. Honest forecasting cannot always hold back collapse.`;
+  }
+  if (partialN + woundedN > 0) {
+    return `You finished arcs but rarely earned full-life status — <strong>${partialN}</strong> forecast-short, <strong>${woundedN}</strong> final-collapse. Overall accuracy: <strong>${forecastPct}%</strong>.`;
+  }
+  return `This game asked for humility. Crosses survived: <strong>${fullLifeN}</strong> · lost: <strong>${extinctN}</strong>. Keep practicing deploy + forecast alignment.`;
+}

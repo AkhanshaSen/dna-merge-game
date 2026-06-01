@@ -8,6 +8,7 @@ import {
   isObserveDeploy,
 } from './deploy-match.js';
 import { revivalHintReason, isRevivalEligible } from './extinction-revival.js';
+import { RESOURCE_SOFT_CAP, SUB_ROUNDS_PER_ROUND } from './constants.js';
 import { game } from './state.js';
 
 /** Approximate outcome bands from survival index (for player hints only) */
@@ -23,10 +24,26 @@ export function setCoachForPhase(phase, extra = {}) {
   const h = game.HYBRID;
   const name = h?.name || 'this cohort';
 
+  if (phase === 'lobby') {
+    game.coachNote = {
+      kind: 'neutral',
+      text: `<strong>Lobby.</strong> Each <strong>Game</strong> refills <strong>${RESOURCE_SOFT_CAP} lab units</strong> (shared across ${SUB_ROUNDS_PER_ROUND} crosses). Tap <strong>Start Game</strong> when you're ready — merge founders only after that.`,
+    };
+    return;
+  }
+
+  if (phase === 'game-active') {
+    game.coachNote = {
+      kind: 'good',
+      text: `<strong>Game ${game.roundNumber}</strong> is live — <strong>${RESOURCE_SOFT_CAP}</strong> lab loaded. Pick two founders, merge, deploy, and forecast through three crosses.`,
+    };
+    return;
+  }
+
   if (phase === 'select') {
     game.coachNote = {
       kind: 'neutral',
-      text: `<strong>Why merge?</strong> You are the last hands on an extinction ledger. <strong>15 lab units</strong> must fund deploys across three crosses this round — spend wisely or face gambit (forecast-only) stages.`,
+      text: `<strong>Why merge?</strong> You are the last hands on an extinction ledger. <strong>${RESOURCE_SOFT_CAP} lab units</strong> fund deploys across three crosses this Game — spend wisely or face gambit (forecast-only) stages.`,
     };
     return;
   }
@@ -52,15 +69,19 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'life-gambit') {
     game.coachNote = {
       kind: 'warn',
-      text: `<strong>Lab empty — gambit mode.</strong> Pick <strong>Monitor Only</strong> (same dice path) or forecast-only gambit. ${name} survives or falls without full deploy leverage.`,
+      text: `<strong>Lab empty — gambit mode.</strong> Pick <strong>Just Monitor</strong> (same dice path) or forecast-only gambit. ${name} survives or falls without full deploy leverage.`,
     };
     return;
   }
 
   if (phase === 'life-observe') {
+    const stage = game.lifeStageIndex || 1;
+    const juvenile = stage >= 2;
     game.coachNote = {
       kind: 'neutral',
-      text: `<strong>Monitor only.</strong> You are saving lab units — forecast how ${name} fares, then nature's dice decide. No deploy bonus; humility over hubris.`,
+      text: juvenile
+        ? `<strong>Just Monitor.</strong> You chose to save lab for later stages — forecast how ${name} fares, then nature's dice decide. No deploy bonus this beat.`
+        : `<strong>Just Monitor.</strong> You are saving lab units — forecast how ${name} fares, then nature's dice decide. No deploy bonus; humility over hubris.`,
     };
     return;
   }

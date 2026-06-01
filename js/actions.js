@@ -17,10 +17,11 @@ import {
   FULL_LIFE_LAB_BONUS,
   CROSS_LAB_STIPEND,
   MIN_LAB_FOR_DEPLOY,
+  CROSS_STEWARDSHIP_BONUS_PTS,
 } from './constants.js';
 import { findFounder } from './species.js';
 import { LS } from './storage.js';
-import { fbHybrid, fbNarrative, fbVerdict } from './fallbacks.js';
+import { fbHybrid, fbNarrative, fbVerdict, fbCrossEndNarr } from './fallbacks.js';
 import {
   blendTraits,
   avgScore,
@@ -71,6 +72,17 @@ import {
   applyExtinctionRevival,
   revivalWouldCompleteCross,
 } from './extinction-revival.js';
+import { recordCrossOutcome } from './round-tracker.js';
+import { evaluateCrossEnd, CROSS_TIER } from './cross-outcomes.js';
+import { archiveCompletedGame } from './history-groups.js';
+import {
+  startNewGame,
+  declineStartGame,
+  openIntroFull,
+  openIntroStartPrompt,
+  introStepIndex,
+  INTRO_STEP_COUNT,
+} from './game-intro.js';
 
 function clampResource(n) {
   return Math.min(Math.max(0, n), RESOURCE_SOFT_CAP);
@@ -107,20 +119,9 @@ function famePayload() {
   };
 }
 
-/** Start meta-round bookkeeping when first merge begins */
+/** Game must be started via Start Game; merge only continues an active game. */
 function ensureRoundBudget() {
-  if (!game.roundActive) {
-    game.roundActive = true;
-    game.roundNumber = (game.roundNumber || 0) + 1;
-    game.subRoundIndex = 1;
-    game.careMateLedgerPct = 0;
-    game.bonusPassesNextSubRound = 0;
-    game.roundPointsSnapshot = game.ST.points;
-    game.roundDeployStats = { total: 0, wrong: 0 };
-    game.devilShownThisRound = false;
-    game.isDevilMarked = false;
-    game.showDevilModal = false;
-  }
+  if (!game.roundActive) return;
 }
 
 export function dismissDevil() {
@@ -141,8 +142,35 @@ export function setLabFilter(filter) {
 
 export function dismissTutorial() {
   game.ST.tutorialDone = true;
-  game.showTutorial = false;
+  game.showIntro = false;
   savePersisted();
+  render();
+}
+
+export function confirmStartGame() {
+  if (!game.gameAwaitingStart && game.roundActive) return;
+  startNewGame();
+  setCoachForPhase('game-active');
+  showToast(
+    {
+      title: `Game ${game.roundNumber} begins`,
+      body: `${RESOURCE_SOFT_CAP} lab units loaded · 3 crosses ahead.`,
+      variant: 'good',
+    },
+    4200,
+  );
+  savePersisted();
+  render();
+}
+
+export function cancelStartGame() {
+  declineStartGame();
+  setCoachForPhase('lobby');
+  render();
+}
+
+export function openStartGamePrompt() {
+  openIntroStartPrompt();
   render();
 }
 
@@ -184,7 +212,7 @@ export function acceptExtinctionRevival() {
     });
     savePersisted();
     game.NARR = `You read the collapse coming — and earned one last chance. ${name} limps through old age with renewed lab support.`;
-    advanceAfterSubRoundSuccess();
+    routeCrossEnd(lr);
     return;
   }
 
@@ -287,22 +315,46 @@ export function setRecordsFilter(f) {
 }
 
 export function showTutorial() {
-  game.showTutorial = true;
-  game.tutorialStep = 0;
+  openIntroFull();
   render();
 }
 
-export function tutorialNext() {
-  game.tutorialStep = (game.tutorialStep || 0) + 1;
+export function introNext() {
+  const idx = introStepIndex();
+  if (idx >= INTRO_STEP_COUNT - 1) return;
+  game.introStep = idx + 1;
   render();
+}
+
+export function introPrev() {
+  game.introStep = Math.max(0, introStepIndex() - 1);
+  render();
+}
+
+export function introSkipToStart() {
+  openIntroStartPrompt();
+  render();
+}
+
+/** @deprecated alias */
+export function tutorialNext() {
+  introNext();
 }
 
 export function tutorialPrev() {
-  game.tutorialStep = Math.max(0, (game.tutorialStep || 0) - 1);
-  render();
+  introPrev();
 }
 
 export function pick(individualId) {
+  if (game.gameAwaitingStart) {
+    showToast(
+      { title: 'Start Game first', body: 'Tap Start Game to load lab resources and begin Cross 1.', variant: 'warn' },
+      3600,
+    );
+    if (!game.showIntro) openIntroStartPrompt();
+    render();
+    return;
+  }
   const hit = findFounder(individualId);
   if (!hit) return;
   const wrapped = { species: hit.species, individual: hit.individual };
@@ -369,6 +421,15 @@ export function pick(individualId) {
 }
 
 export function startMerge() {
+  if (game.gameAwaitingStart || !game.roundActive) {
+    showToast(
+      { title: 'Start Game first', body: 'Begin a Game before merging founders.', variant: 'warn' },
+      3600,
+    );
+    if (!game.showIntro) openIntroStartPrompt();
+    render();
+    return;
+  }
   const A = game.SEL_PARENT_A;
   const B = game.SEL_PARENT_B;
   if (!A || !B || A.individual.id === B.individual.id) return;
@@ -518,7 +579,7 @@ function proceedAfterReceiptCore() {
 
   if (game.lifeStageIndex >= LIFE_STAGES_PER_SUBROUND) {
     game.NARR = lr.narrative;
-    advanceAfterSubRoundSuccess();
+    routeCrossEnd(lr);
     return;
   }
 
@@ -566,6 +627,13 @@ export function pickLifeResource(id) {
 
 export function pickLifePred(pred) {
   if (pred !== 'survive' && pred !== 'damage' && pred !== 'extinct') return;
+  if (!game.gambitMode && !game.LIFE_RES) {
+    showToast(
+      { title: 'Pick a deploy first', body: 'Select a conservation deploy (or Just Monitor) before forecasting.', variant: 'warn' },
+      3200,
+    );
+    return;
+  }
   game.LIFE_PRED = pred;
   setCoachForPhase('life-forecast');
   render();
@@ -575,6 +643,10 @@ function logLifeBeat(extra) {
   game.ST.log.push({
     name: game.HYBRID.name,
     cycle: game.lifeStageIndex,
+    gameNumber: game.roundNumber || null,
+    crossIndex: game.subRoundIndex,
+    stage: game.lifeStageIndex,
+    ts: Date.now(),
     event: extra.event,
     res: extra.res,
     out: extra.out,
@@ -589,32 +661,75 @@ function pushPredictionRow(pred, actual, pts) {
     actual,
     ok: pred === actual,
     cycle: game.subRoundIndex * 10 + game.lifeStageIndex,
+    gameNumber: game.roundNumber || null,
+    crossIndex: game.subRoundIndex,
+    stage: game.lifeStageIndex,
+    ts: Date.now(),
     slot: 0,
     pts,
   });
 }
 
-function advanceAfterSubRoundFailure() {
-  game.HYBRID.outcome = 'extinct';
-  game.ST.extinctions.push(extinctionPayload());
+function finishSubRoundEnd(tier, finalNarr) {
+  game.crossEndTier = tier;
+  game.FINAL_NARR = finalNarr;
   savePersisted();
-  game.FINAL_NARR = fbVerdict(game.HYBRID.name, 'extinct');
   game.PHASE = 'subRoundEnd';
   render();
 }
 
-function advanceAfterSubRoundSuccess() {
+function routeCrossEnd(lr) {
+  const { tier, forecast, rolled } = evaluateCrossEnd(lr);
+  switch (tier) {
+    case CROSS_TIER.FULL_LIFE:
+      advanceAfterSubRoundFullLife(forecast, rolled);
+      break;
+    case CROSS_TIER.PARTIAL_ARC:
+      advanceAfterSubRoundPartial(forecast, rolled);
+      break;
+    case CROSS_TIER.WOUNDED_END:
+      advanceAfterSubRoundWounded(forecast, rolled);
+      break;
+    default:
+      advanceAfterSubRoundFailure();
+  }
+}
+
+function advanceAfterSubRoundFailure() {
+  recordCrossOutcome(CROSS_TIER.EXTINCT);
+  game.HYBRID.outcome = 'extinct';
+  game.ST.extinctions.push(extinctionPayload());
+  finishSubRoundEnd(CROSS_TIER.EXTINCT, fbVerdict(game.HYBRID.name, 'extinct'));
+}
+
+function advanceAfterSubRoundFullLife(forecast, rolled) {
+  recordCrossOutcome(CROSS_TIER.FULL_LIFE, { forecast, rolled });
   game.HYBRID.outcome = 'survive';
   game.careMateLedgerPct += CARE_MATE_BONUS_PER_FULL_LIFE;
   game.bonusPassesNextSubRound += 2;
   game.ST.fame.push(famePayload());
   game.ST.resources = clampResource(game.ST.resources + FULL_LIFE_LAB_BONUS);
+  game.ST.points = clampPoints(game.ST.points + CROSS_STEWARDSHIP_BONUS_PTS);
   checkAchievements(game, 'full_life');
   checkAchievements(game, 'fame');
-  game.FINAL_NARR = `🌟 ${game.HYBRID.name} completed a full natural life. Care+mate legacy: <strong>+${CARE_MATE_BONUS_PER_FULL_LIFE}%pts</strong> toward survival in later crosses this round, and <strong>+2 deploy passes</strong> banked toward the next cross.`;
-  savePersisted();
-  game.PHASE = 'subRoundEnd';
-  render();
+  const narr = fbCrossEndNarr(game.HYBRID.name, CROSS_TIER.FULL_LIFE, forecast, rolled);
+  const bonus = ` Stewardship bonus: <strong>+${CROSS_STEWARDSHIP_BONUS_PTS} pts</strong>.`;
+  finishSubRoundEnd(
+    CROSS_TIER.FULL_LIFE,
+    `${narr} Care+mate legacy: <strong>+${CARE_MATE_BONUS_PER_FULL_LIFE}%pts</strong> toward survival in later crosses this game, and <strong>+2 deploy passes</strong> banked toward the next cross.${bonus}`,
+  );
+}
+
+function advanceAfterSubRoundPartial(forecast, rolled) {
+  recordCrossOutcome(CROSS_TIER.PARTIAL_ARC, { forecast, rolled });
+  game.HYBRID.outcome = 'damage';
+  finishSubRoundEnd(CROSS_TIER.PARTIAL_ARC, fbCrossEndNarr(game.HYBRID.name, CROSS_TIER.PARTIAL_ARC, forecast, rolled));
+}
+
+function advanceAfterSubRoundWounded(forecast, rolled) {
+  recordCrossOutcome(CROSS_TIER.WOUNDED_END, { forecast, rolled });
+  game.HYBRID.outcome = 'damage';
+  finishSubRoundEnd(CROSS_TIER.WOUNDED_END, fbCrossEndNarr(game.HYBRID.name, CROSS_TIER.WOUNDED_END, forecast, rolled));
 }
 
 function goToNextCrossOrRound() {
@@ -683,7 +798,7 @@ async function resolveObserveLifeCycle() {
     diceA: fate.diceA,
     diceB: fate.diceB,
     cohortWins: fate.cohortWins,
-    chosenName: 'Monitor Only',
+    chosenName: game.LIFE_RES?.name || 'Just Monitor',
     revivalEligible: guessOk && pred === 'extinct' && fate.rolled === 'extinct' && game.healthMeter <= 0,
     narrative: `You chose to watch rather than spend lab units. ${fate.cohortWins ? 'The cohort endured on its own.' : 'Nature pressed hard.'} ${fbNarrative(h.name, ev.name, fate.rolled, game.lifeStageIndex)}`,
   };
@@ -777,8 +892,15 @@ export async function resolveLifeCycle() {
 
   const pred = game.LIFE_PRED;
   const chosenRes = game.LIFE_RES;
-  if (!pred || !chosenRes) {
-    showToast({ title: 'Choices needed', body: 'Pick both a deployable and one survival forecast.', variant: 'warn' }, 3200);
+  if (!chosenRes) {
+    showToast(
+      { title: 'Pick a deploy first', body: 'Select a conservation deploy card before resolving this stage.', variant: 'warn' },
+      3200,
+    );
+    return;
+  }
+  if (!pred) {
+    showToast({ title: 'Forecast needed', body: 'Pick survive, damage, or extinct before resolving.', variant: 'warn' }, 3200);
     return;
   }
   if (!isObserveDeploy(chosenRes) && !canAffordDeploy(chosenRes, game.ST.resources)) {
@@ -908,10 +1030,14 @@ export function continueAfterSubRound() {
 export function finishRoundSummary() {
   if (game.PHASE !== 'roundEnd') return;
   checkAchievements(game, 'round_end');
+  archiveCompletedGame();
   const br = game.ST.breedRound || 1;
   game.ST.breedRound = br >= 5 ? 1 : br + 1;
   resetRoundSession();
   resetSession();
+  game.gameAwaitingStart = true;
+  openIntroStartPrompt();
+  setCoachForPhase('lobby');
   savePersisted();
   render();
 }
@@ -921,5 +1047,7 @@ export function resetAll() {
   reloadPersistedState();
   resetRoundSession();
   resetSession();
+  game.gameAwaitingStart = true;
+  openIntroFull();
   render();
 }

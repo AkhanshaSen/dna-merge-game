@@ -344,13 +344,20 @@ export function resolveStageVitality(healthBefore, rawRoll, pred, hybridScore = 
   return { rolled: outcome, displayRoll: rawRoll, foughtBack, health, guessOk };
 }
 
+/** Cohort vs nature gate % for gambit UI (before roll). */
+export function gambitOddsPreview(hybridScore = 50) {
+  const tilt = Math.min(5, Math.max(-5, Math.floor((hybridScore - 50) / 10)));
+  const cohortPct = Math.round(50 - tilt);
+  const naturePct = 100 - cohortPct;
+  return { cohortPct, naturePct, threshold: cohortPct };
+}
+
 /**
- * Gambit: no lab deploy — 50/50 nature vs cohort, then branch outcomes.
+ * Gambit: no lab deploy — cohort tilt vs nature, then branch outcomes.
  * @returns {{ cohortWins: boolean, rolled: string, diceA: number, diceB: number, narrativeKey: string }}
  */
 export function rollGambitFate(hybridScore = 50) {
-  const tilt = Math.min(5, Math.max(-5, Math.floor((hybridScore - 50) / 10)));
-  const threshold = 50 - tilt;
+  const { threshold } = gambitOddsPreview(hybridScore);
   const diceA = 1 + Math.floor(Math.random() * 6);
   const diceB = 1 + Math.floor(Math.random() * 6);
   const fateRoll = Math.random() * 100;
