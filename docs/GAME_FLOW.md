@@ -21,7 +21,7 @@ UI header: **`Game N · Cross M`** (`round-tracker.js` → `gameProgressLabel()`
 
 Before merging founders:
 
-1. **Intro** — 5 steps on first visit; returning players see the final step only (`dna_tutorialDone`).
+1. **Intro** — 7 welcoming steps on first visit; returning players see the final start prompt (`dna_tutorialDone`).
 2. **Start Game** — refills lab to **15/15** (`RESOURCE_START_DEFAULT`), sets `roundActive`, increments **Game N**, clears `gameAwaitingStart`.
 3. **Not now** — Gene Lab browse-only; merge blocked until Start Game.
 
@@ -57,6 +57,7 @@ Each funded stage: **−1 pass** and **−deploy lab cost**. Gene therapy triage
 **Deploy before forecast:** Funded stages lock forecast buttons until a deploy (including Monitor) is selected. Gambit is forecast-only except when Monitor is chosen from the gambit panel.
 
 Crisis card: **Best leverage** hints. Coach banners explain improvise/monitor ethics (`coach-hints.js`).
+On first-game learning mode, UI shows a persistent **\"Your goal now\"** strip and defers full matrix detail until the first stage receipt is completed.
 
 **Stewardship refund:** Correct deploy + correct forecast → **+0.5** lab (`STEWARD_REFUND`). **+2 lab** only on **fullLife** cross end (`FULL_LIFE_LAB_BONUS`).
 
@@ -205,6 +206,7 @@ Narrative: `gameEndVerdictMessage()`.
 | `fallbacks.js` | Hybrid names, cross/game end copy |
 | `render.js` | All phases including tier banners |
 | `coach-hints.js` | Ethics / outlook coach lines |
+| `player-guide.js` | Intro copy, one-time context hints, simplified settings guide |
 | `constants.js` | Tunables: `MATRIX_*`, tiers, caps |
 | `history-groups.js` | History grouping, timestamps, `archiveCompletedGame()` |
 
@@ -234,6 +236,7 @@ On **game summary** (`finishRoundSummary`), `archiveCompletedGame()` appends to 
 | `dna_breedRound` | Campaign slot 1–5 |
 | `dna_achievements` | Milestones |
 | `dna_tutorialDone` | Intro completed |
+| `dna_hintsSeen` | One-time onboarding hint ids already dismissed |
 | `dna_gameSessions` | Completed game archives for History |
 | `dna_activeGameNumber` / `dna_activeGameStartedAt` | Active game metadata |
 

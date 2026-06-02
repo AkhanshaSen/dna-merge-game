@@ -27,9 +27,11 @@ import {
   cancelStartGame,
   openStartGamePrompt,
   dismissDevil,
+  dismissContextHint,
 } from './actions.js';
 import { game, resetSession, savePersisted, resetRoundSession } from './state.js';
 import { setCoachForPhase } from './coach-hints.js';
+import { INTRO_STEP_COUNT } from './game-intro.js';
 
 function uiResetSession() {
   resetRoundSession();
@@ -45,7 +47,7 @@ function initLobby() {
     game.introStep = 0;
   } else if (game.gameAwaitingStart) {
     game.showIntro = true;
-    game.introStep = 4;
+    game.introStep = INTRO_STEP_COUNT - 1;
   }
   setCoachForPhase(game.gameAwaitingStart ? 'lobby' : 'select');
 }
@@ -78,6 +80,7 @@ Object.assign(window, {
   cancelStartGame,
   openStartGamePrompt,
   dismissDevil,
+  dismissContextHint,
   resetSession: uiResetSession,
   render,
 });
@@ -172,6 +175,9 @@ document.getElementById('main').addEventListener('click', (e) => {
     case 'dismiss-devil':
       dismissDevil();
       break;
+    case 'dismiss-hint':
+      dismissContextHint(el.dataset.hintId);
+      break;
     default:
       break;
   }
@@ -194,4 +200,15 @@ document.body.addEventListener('click', (e) => {
   else if (action === 'decline-start-game') cancelStartGame();
 });
 
-render();
+try {
+  render();
+} catch (err) {
+  const main = document.getElementById('main');
+  if (main) {
+    main.innerHTML = `<div class="card anim-up">
+      <div class="ctitle">Unable to load game</div>
+      <p class="settings-body">Something went wrong while loading this session. Please refresh the page. If the issue remains, open the browser console and share the error.</p>
+    </div>`;
+  }
+  console.error(err);
+}

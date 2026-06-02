@@ -83,6 +83,7 @@ import {
   introStepIndex,
   INTRO_STEP_COUNT,
 } from './game-intro.js';
+import { markHintSeen } from './player-guide.js';
 
 function clampResource(n) {
   return Math.min(Math.max(0, n), RESOURCE_SOFT_CAP);
@@ -90,6 +91,10 @@ function clampResource(n) {
 
 function clampPoints(n) {
   return Math.min(Math.max(0, Math.floor(n)), FORECAST_POINTS_SOFT_CAP);
+}
+
+function markGuideHint(hintId) {
+  if (markHintSeen(game.ST, hintId)) savePersisted();
 }
 
 function extinctionPayload() {
@@ -149,12 +154,13 @@ export function dismissTutorial() {
 
 export function confirmStartGame() {
   if (!game.gameAwaitingStart && game.roundActive) return;
+  markGuideHint('welcomeLobby');
   startNewGame();
   setCoachForPhase('game-active');
   showToast(
     {
       title: `Game ${game.roundNumber} begins`,
-      body: `${RESOURCE_SOFT_CAP} lab units loaded · 3 crosses ahead.`,
+      body: 'Pick two founders and merge to begin your first cross.',
       variant: 'good',
     },
     4200,
@@ -176,6 +182,7 @@ export function openStartGamePrompt() {
 
 export function dismissStageReceipt() {
   if (game.lifeSubStep !== 'receipt') return;
+  markGuideHint('firstReceipt');
   if (isRevivalEligible(game.LAST_RESOLVE)) {
     game.lifeSubStep = 'revival';
     setCoachForPhase('revival', { resolve: game.LAST_RESOLVE });
@@ -487,6 +494,8 @@ export function startMerge() {
 /** From hybrid briefing → first life-stage screen */
 export function beginLifeStage() {
   if (!game.HYBRID) return;
+  markGuideHint('firstMerge');
+  markGuideHint('pickFounders');
   game.coachNote = null;
   game.PHASE = 'life';
   game.lifeStageIndex = 1;
@@ -521,6 +530,7 @@ export function beginLifeStage() {
   } else {
     setCoachForPhase(game.gambitMode ? 'life-gambit' : 'life');
   }
+  markGuideHint('firstLifeStage');
   render();
 }
 
@@ -609,6 +619,7 @@ export function pickLifeResource(id) {
     game.LIFE_RES = res;
     game.LIFE_PRED = null;
     setCoachForPhase('life-observe');
+    markGuideHint('firstDeploy');
     render();
     return;
   }
@@ -622,6 +633,7 @@ export function pickLifeResource(id) {
   game.LIFE_RES = res;
   game.LIFE_PRED = null;
   setCoachForPhase('life-deploy');
+  markGuideHint('firstDeploy');
   render();
 }
 
@@ -636,6 +648,13 @@ export function pickLifePred(pred) {
   }
   game.LIFE_PRED = pred;
   setCoachForPhase('life-forecast');
+  markGuideHint('firstForecast');
+  render();
+}
+
+export function dismissContextHint(hintId) {
+  if (!hintId) return;
+  markGuideHint(hintId);
   render();
 }
 

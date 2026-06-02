@@ -37,6 +37,7 @@ export function loadState() {
     log: LS.get('log') || [],
     achievements: Array.isArray(LS.get('achievements')) ? LS.get('achievements') : [],
     tutorialDone: !!LS.get('tutorialDone'),
+    hintsSeen: Array.isArray(LS.get('hintsSeen')) ? LS.get('hintsSeen') : [],
     gameSessions: Array.isArray(LS.get('gameSessions')) ? LS.get('gameSessions') : [],
     activeGameNumber: LS.get('activeGameNumber') ?? null,
     activeGameStartedAt: LS.get('activeGameStartedAt') ?? null,
@@ -54,6 +55,7 @@ export function saveState(s) {
   LS.set('log', s.log);
   LS.set('achievements', s.achievements || []);
   LS.set('tutorialDone', !!s.tutorialDone);
+  LS.set('hintsSeen', s.hintsSeen || []);
   LS.set('gameSessions', s.gameSessions || []);
   if (s.activeGameNumber != null) LS.set('activeGameNumber', s.activeGameNumber);
   else localStorage.removeItem('dna_activeGameNumber');

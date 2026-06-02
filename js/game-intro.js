@@ -1,42 +1,13 @@
 import {
   RESOURCE_SOFT_CAP,
   PASSES_PER_CROSS_SEQUENCE,
-  SUB_ROUNDS_PER_ROUND,
-  FORECAST_WIN_ACCURACY,
 } from './constants.js';
 import { game, savePersisted } from './state.js';
 import { beginRoundTracking } from './round-tracker.js';
+import { INTRO_STEPS } from './player-guide.js';
+export { INTRO_STEPS } from './player-guide.js';
 
-export const INTRO_STEP_COUNT = 5;
-
-export const INTRO_STEPS = [
-  {
-    title: 'Species Survival Engine',
-    body: 'Merge endangered founders into one living cohort. Your choices decide whether unique genetics persist or vanish.',
-    icon: '🧬',
-  },
-  {
-    title: 'One Game · Three Crosses',
-    body: `Each <strong>Game</strong> runs <strong>${SUB_ROUNDS_PER_ROUND} animal crosses</strong>. Every cross walks four life stages — help each line survive birth through old age.`,
-    icon: '🌍',
-  },
-  {
-    title: 'Deploy · Forecast · Survive',
-    body: 'Match conservation deploys to crises (✦ synergy). Then forecast <strong>survive</strong>, <strong>damage</strong>, or <strong>extinct</strong> — humility matters as much as tools.',
-    icon: '🛡️',
-  },
-  {
-    title: 'Be smart — or risk extinction',
-    body: `Wrong deploys end lines. Honest collapse forecasts can earn a revival. At game end, guess-to-reality <strong>&gt;${FORECAST_WIN_ACCURACY}%</strong> = <strong>Winner</strong>.`,
-    icon: '⚖️',
-  },
-  {
-    title: 'Ready?',
-    body: `You get <strong>${RESOURCE_SOFT_CAP} shared lab units</strong> per Game (not per cross). Deploy wisely, forecast honestly, and steward three crosses.`,
-    icon: '🚀',
-    isStart: true,
-  },
-];
+export const INTRO_STEP_COUNT = INTRO_STEPS.length;
 
 export function nextGameNumber() {
   return (game.roundNumber || 0) + 1;

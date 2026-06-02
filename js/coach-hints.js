@@ -27,7 +27,7 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'lobby') {
     game.coachNote = {
       kind: 'neutral',
-      text: `<strong>Lobby.</strong> Each <strong>Game</strong> refills <strong>${RESOURCE_SOFT_CAP} lab units</strong> (shared across ${SUB_ROUNDS_PER_ROUND} crosses). Tap <strong>Start Game</strong> when you're ready — merge founders only after that.`,
+      text: `<strong>Welcome.</strong> Tap <strong>Start Game</strong>, pick two founders, and merge. You get <strong>${RESOURCE_SOFT_CAP}</strong> shared lab units for ${SUB_ROUNDS_PER_ROUND} crosses.`,
     };
     return;
   }
@@ -35,7 +35,7 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'game-active') {
     game.coachNote = {
       kind: 'good',
-      text: `<strong>Game ${game.roundNumber}</strong> is live — <strong>${RESOURCE_SOFT_CAP}</strong> lab loaded. Pick two founders, merge, deploy, and forecast through three crosses.`,
+      text: `<strong>Game ${game.roundNumber} started.</strong> Pick two founders, merge, then guide each cross through 4 life stages.`,
     };
     return;
   }
@@ -43,7 +43,7 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'select') {
     game.coachNote = {
       kind: 'neutral',
-      text: `<strong>Why merge?</strong> You are the last hands on an extinction ledger. <strong>${RESOURCE_SOFT_CAP} lab units</strong> fund deploys across three crosses this Game — spend wisely or face gambit (forecast-only) stages.`,
+      text: '<strong>Step 1:</strong> Pick one compatible male and one female founder. Locked cards show pairings that cannot merge.',
     };
     return;
   }
@@ -51,7 +51,7 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'hybrid') {
     game.coachNote = {
       kind: 'good',
-      text: `<strong>${name}</strong> exists because you chose hope over silence. Vitality is a living meter — wrong tools end a line, but <em>right care lets them fight back</em> even when your forecast is imperfect.`,
+      text: `<strong>${name}</strong> is ready. Next, help this line survive 4 life stages by choosing support and making your best forecasts.`,
     };
     return;
   }
@@ -61,7 +61,7 @@ export function setCoachForPhase(phase, extra = {}) {
     const stage = game.lifeStageIndex || 1;
     game.coachNote = {
       kind: 'neutral',
-      text: `<strong>Playing god?</strong> Every deploy rewrites fate — reserves, vaccines, patrols. Nature still rolls the dice; you tilt the odds. Stage ${stage}/4: ${ev?.name || 'crisis'} tests whether ${name} can endure.`,
+      text: `Stage ${stage}/4. Pick the best help card for ${ev?.name || 'this crisis'}, then guess survive, damage, or extinct.`,
     };
     return;
   }
@@ -69,7 +69,7 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'life-gambit') {
     game.coachNote = {
       kind: 'warn',
-      text: `<strong>Lab empty — gambit mode.</strong> Pick <strong>Just Monitor</strong> (same dice path) or forecast-only gambit. ${name} survives or falls without full deploy leverage.`,
+      text: `<strong>Low lab.</strong> You can choose Just Monitor or play forecast-only. Outcomes are riskier without full intervention.`,
     };
     return;
   }
@@ -80,8 +80,8 @@ export function setCoachForPhase(phase, extra = {}) {
     game.coachNote = {
       kind: 'neutral',
       text: juvenile
-        ? `<strong>Just Monitor.</strong> You chose to save lab for later stages — forecast how ${name} fares, then nature's dice decide. No deploy bonus this beat.`
-        : `<strong>Just Monitor.</strong> You are saving lab units — forecast how ${name} fares, then nature's dice decide. No deploy bonus; humility over hubris.`,
+        ? `<strong>Just Monitor selected.</strong> You save lab for later. Now forecast what happens; this beat has no deploy bonus.`
+        : `<strong>Just Monitor selected.</strong> You save lab this stage. Forecast the outcome, then nature decides the result.`,
     };
     return;
   }
@@ -99,23 +99,23 @@ export function setCoachForPhase(phase, extra = {}) {
         kind: hasSyn && afford ? 'warn' : 'neutral',
         text:
           hasSyn && afford
-            ? `<strong>Improvised — not ideal.</strong> ✦ synergy deploys exist and you could afford one. Scrap tools still help, but the devil mark tracks wasted chances.`
-            : `<strong>Best you could do.</strong> No perfect tool — or lab too tight. Improvise buys ${name} partial cover (+8) without pretending you had the right vaccine.`,
+            ? '<strong>You chose Improvise.</strong> A ✦ card was available and affordable, so this is a weaker option.'
+            : '<strong>Good fallback.</strong> No ideal card was available (or affordable), so improvise keeps the line moving.',
       };
       return;
     }
     if (crisisHasSynergyDeploys(ev) && res && !ok) {
       game.coachNote = {
         kind: 'warn',
-        text: `<strong>The hints glowed — you ignored them.</strong> ✦ marked interventions that fit this crisis. Misaligned deploy wastes lab units and risks the devil mark this round.`,
+        text: '<strong>That card does not match the crisis.</strong> ✦ cards are usually safer picks and reduce collapse risk.',
       };
       return;
     }
     game.coachNote = {
       kind: ok ? 'good' : 'warn',
       text: ok
-        ? `<strong>Stewardship aligned.</strong> ${res.emoji} ${res.name} answers this crisis — you are intervening where the wild no longer can. ${syn > 0 ? `Synergy +${syn} gives ${name} room to fight.` : ''}`
-        : `<strong>Why this deploy?</strong> The cohort still depends on your choice. Compare the crisis story to each card — misaligned help wastes lab units.`,
+        ? `${res.emoji} <strong>${res.name}</strong> fits this crisis.${syn > 0 ? ` Synergy +${syn} improves survival odds.` : ''}`
+        : '<strong>Careful:</strong> this help may be a poor match for the crisis.',
     };
     return;
   }
@@ -128,7 +128,7 @@ export function setCoachForPhase(phase, extra = {}) {
     const bands = outlookBands(rate);
     game.coachNote = {
       kind: 'neutral',
-      text: `<strong>Why guess?</strong> You cannot see the future — you model humility. With your deploy, outlook ≈ <strong>${bands.survive}% thrive</strong> · <strong>${bands.damage}% wounded</strong> · <strong>${bands.extinct}% collapse</strong>. Wrong forecasts still earn points if you kept them alive.`,
+      text: `Make your best read. Current outlook is roughly <strong>${bands.survive}% survive</strong>, <strong>${bands.damage}% damaged</strong>, <strong>${bands.extinct}% extinct</strong>.`,
     };
     return;
   }
@@ -137,7 +137,7 @@ export function setCoachForPhase(phase, extra = {}) {
     const lr = extra.resolve;
     game.coachNote = {
       kind: 'good',
-      text: `<strong>You saw the end coming.</strong> Your forecast said <em>extinct</em> — and you were right. ${revivalHintReason(lr)}. The board rewards honest humility with <strong>+4 lab units</strong> and one revival this cross.`,
+      text: `<strong>You read collapse correctly.</strong> ${revivalHintReason(lr)}. You now have one revival option for this cross.`,
     };
     return;
   }
@@ -149,39 +149,39 @@ export function setCoachForPhase(phase, extra = {}) {
         kind: lr.cohortWins ? 'good' : 'warn',
         text: lr.observe
           ? lr.cohortWins
-            ? `You watched and guessed ${lr.guessOk ? 'well' : 'wrong'} — ${name} endured without spending lab units.`
-            : `Monitor-only beat: nature pressed hard. Sometimes the ethical choice is admitting limits.`
+            ? `Monitor-only result: ${name} held on. Your guess was ${lr.guessOk ? 'correct' : 'off'}, and no lab was spent.`
+            : 'Monitor-only result: nature hit hard this stage.'
           : lr.cohortWins
-            ? `Without deploys, ${name} still held — your forecast ${lr.guessOk ? 'was right' : 'missed'}, but the cohort fought on its own.`
-            : `Nature won this gambit beat. No lab leverage — only humility and dice.`,
+            ? `${name} held in gambit mode. Your forecast was ${lr.guessOk ? 'correct' : 'off'}.`
+            : 'Gambit result: the line lost this stage without full support.',
       };
       return;
     }
     if (lr.partialDeploy && !lr.gambit) {
       game.coachNote = {
         kind: lr.guessOk ? 'good' : 'warn',
-        text: `Improvised care is imperfect — ${name} ${lr.rolled === 'extinct' ? 'could not hold' : 'still has a path forward'}. Partial tools beat paralysis.`,
+        text: `Improvise was partial support. ${name} ${lr.rolled === 'extinct' ? 'could not hold this stage.' : 'is still in the game.'}`,
       };
       return;
     }
     if (isRevivalEligible(lr)) {
       game.coachNote = {
         kind: 'good',
-        text: `<strong>Honest forecast.</strong> You called extinction and nature agreed. Tap <em>Review revival offer</em> — the programme may restore the line if you read collapse without the resources to stop it.`,
+        text: '<strong>Great read.</strong> You predicted extinction correctly. Review the revival offer if you want one rescue chance.',
       };
       return;
     }
     if (lr.resourceOk === false) {
       game.coachNote = {
         kind: 'warn',
-        text: `<strong>Wrong deploy.</strong> The hints pointed elsewhere. Playing god poorly is worse than playing none.`,
+        text: '<strong>Wrong deploy.</strong> The help did not match the crisis, so this line collapsed.',
       };
       return;
     }
     if (lr.foughtBack) {
       game.coachNote = {
         kind: 'good',
-        text: `<strong>${name} refused to vanish.</strong> Your deploy held — the line took a brutal hit but vitality remains. Conservation is often damage control, not miracles.`,
+        text: `<strong>${name} survived a heavy hit.</strong> Vitality dropped, but the line can continue.`,
       };
       return;
     }
@@ -189,8 +189,8 @@ export function setCoachForPhase(phase, extra = {}) {
       game.coachNote = {
         kind: lr.guessOk ? 'good' : 'warn',
         text: lr.guessOk
-          ? `You read the wild correctly. ${name} marches on — the experiment earns trust one stage at a time.`
-          : `Forecast missed, but <strong>care mattered more than prophecy</strong>. +${lr.pts} pts — the cohort survives your learning curve.`,
+          ? `Nice read. ${name} keeps going to the next stage.`
+          : `Forecast missed, but your care choice still helped the line survive.`,
       };
       return;
     }
@@ -199,7 +199,7 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'triage') {
     game.coachNote = {
       kind: 'warn',
-      text: `<strong>Vet ethics:</strong> Gene therapy spends scarce lab resources. Cure the defect and ease their path — or accept the burden and prove resilience anyway.`,
+      text: 'Gene therapy can remove this defect, but it costs lab. Choose cure now or save resources for later stages.',
     };
     return;
   }
@@ -207,7 +207,7 @@ export function setCoachForPhase(phase, extra = {}) {
   if (phase === 'care') {
     game.coachNote = {
       kind: 'good',
-      text: `<strong>Husbandry, not omnipotence.</strong> Pick how keepers will nurture ${name} before the next crisis — small daily choices stack into survival.`,
+      text: `Pick a care style for ${name}. Small care choices now can improve later survival odds.`,
     };
   }
 }
@@ -215,16 +215,16 @@ export function setCoachForPhase(phase, extra = {}) {
 export function ethicalHintBlock(type) {
   const blocks = {
     deploy: `<div class="ethics-hint anim-up">
-      <span class="ethics-kicker">Why intervene?</span>
-      <p>Endangered lines do not heal themselves. Deploys are how humans admit complicity — and try to pay the debt. Match the ✦ synergy card when you can; otherwise <strong>Improvise</strong> or <strong>Monitor</strong>.</p>
+      <span class="ethics-kicker">Deploy tip</span>
+      <p>Pick the card that fits the crisis. Glowing ✦ cards are usually the best match.</p>
     </div>`,
     forecast: `<div class="ethics-hint anim-up">
-      <span class="ethics-kicker">Why forecast?</span>
-      <p>You are not graded as a prophet. Guessing trains you to respect uncertainty — the same uncertainty wild populations face every season.</p>
+      <span class="ethics-kicker">Forecast tip</span>
+      <p>Guess what happens next. You are scored on reading nature, not on being psychic.</p>
     </div>`,
     vitality: `<div class="ethics-hint ethics-vitality anim-up">
-      <span class="ethics-kicker">Vitality = the line fighting back</span>
-      <p>Even with correct deploys, cohorts can be wounded. Vitality above zero means <strong>${game.HYBRID?.name || 'they'}</strong> still has a chance at the next stage.</p>
+      <span class="ethics-kicker">Vitality</span>
+      <p>Health above zero means <strong>${game.HYBRID?.name || 'the line'}</strong> can keep going.</p>
     </div>`,
   };
   return blocks[type] || '';

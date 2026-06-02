@@ -24,6 +24,9 @@ A conservation genetics game where you merge endangered species (or renew lines 
 
 ## 🎮 How to Play
 
+First visit now includes a **7-step welcoming intro**, and contextual tips appear during your first cross to keep learning simple while you play.
+During early learning mode, the game also shows a **\"Your goal now\"** strip and hides some advanced scoring detail until you complete your first receipt.
+
 ### Gene Lab & breeding
 
 | Step | Action |
@@ -154,6 +157,7 @@ dna-merge-game/
     ├── round-tracker.js     ← Game/Cross labels, cross results, game verdict
     ├── history-groups.js    ← Game-grouped history, archive on summary
     ├── game-intro.js        ← Start Game gate + intro steps
+    ├── player-guide.js      ← Welcoming copy + one-time context hints
     ├── actions.js           ← User flows, life resolve, tier routing
     ├── render.js            ← DOM (tier banners, game summary)
     ├── fallbacks.js         ← Hybrid / cross-end / game-end copy
