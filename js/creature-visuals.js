@@ -371,6 +371,85 @@ export function lifeStageIcon(stageIndex) {
   return dynIcon('stage', String(stageIndex), { glow: true, size: 40 });
 }
 
+/** Intro overlay — one animated SVG per step (replaces static emoji) */
+const INTRO_STEP_ART = [
+  {
+    color: '#4f7fff',
+    secondary: '#9b5fff',
+    svg: `<path d="M22 8 Q34 18 22 28 Q34 38 22 48 Q34 58 22 56" fill="none" stroke="#4f7fff" stroke-width="2.8" stroke-linecap="round"/>
+      <path d="M42 8 Q30 18 42 28 Q30 38 42 48 Q30 58 42 56" fill="none" stroke="#9b5fff" stroke-width="2.8" stroke-linecap="round"/>
+      <line x1="22" y1="18" x2="42" y2="18" stroke="#4fffdf" stroke-width="1.5" opacity=".6"/>
+      <line x1="22" y1="38" x2="42" y2="38" stroke="#4fffdf" stroke-width="1.5" opacity=".6"/>`,
+  },
+  {
+    color: '#9b5fff',
+    secondary: '#4f7fff',
+    svg: `<circle cx="22" cy="34" r="11" fill="rgba(79,127,255,.15)" stroke="#4f7fff" stroke-width="2.5"/>
+      <circle cx="42" cy="34" r="11" fill="rgba(155,95,255,.15)" stroke="#9b5fff" stroke-width="2.5"/>
+      <text x="32" y="38" text-anchor="middle" fill="#4fffdf" font-size="14" font-weight="700">+</text>`,
+  },
+  {
+    color: '#2dffb3',
+    secondary: '#4f7fff',
+    svg: `<circle cx="32" cy="32" r="18" fill="none" stroke="#2dffb3" stroke-width="2" opacity=".5"/>
+      <circle cx="32" cy="14" r="5" fill="#4f7fff" stroke="#4fffdf" stroke-width="1.5"/>
+      <circle cx="20" cy="40" r="5" fill="#9b5fff" stroke="#4fffdf" stroke-width="1.5"/>
+      <circle cx="44" cy="40" r="5" fill="#ffb84f" stroke="#4fffdf" stroke-width="1.5"/>
+      <line x1="32" y1="19" x2="32" y2="32" stroke="#4fffdf" stroke-width="1" opacity=".4"/>
+      <line x1="24" y1="37" x2="32" y2="32" stroke="#4fffdf" stroke-width="1" opacity=".4"/>
+      <line x1="40" y1="37" x2="32" y2="32" stroke="#4fffdf" stroke-width="1" opacity=".4"/>`,
+  },
+  {
+    color: '#2dffb3',
+    secondary: '#4f7fff',
+    svg: `<path d="M32 10 L44 18 L44 38 Q32 52 20 38 L20 18 Z" fill="rgba(45,255,179,.12)" stroke="#2dffb3" stroke-width="2.8" stroke-linejoin="round"/>
+      <rect x="26" y="28" width="12" height="10" rx="2" fill="none" stroke="#4f7fff" stroke-width="2"/>
+      <path d="M28 32 L36 32 M32 28 L32 36" stroke="#4f7fff" stroke-width="1.5" stroke-linecap="round"/>`,
+  },
+  {
+    color: '#ffb84f',
+    secondary: '#ff4f6b',
+    svg: `<circle cx="32" cy="32" r="20" fill="none" stroke="#ffb84f" stroke-width="1.5" opacity=".35"/>
+      <circle cx="32" cy="32" r="13" fill="none" stroke="#ffb84f" stroke-width="2" opacity=".55"/>
+      <circle cx="32" cy="32" r="6" fill="#ffb84f" stroke="#fff" stroke-width="1"/>
+      <path d="M32 12 L32 8 M32 56 L32 52 M12 32 L8 32 M56 32 L52 32" stroke="#ffb84f" stroke-width="2" stroke-linecap="round" opacity=".5"/>`,
+  },
+  {
+    color: '#ffb84f',
+    secondary: '#4fffdf',
+    svg: `<path d="M32 14 L38 28 L32 24 L26 28 Z" fill="rgba(255,184,79,.25)" stroke="#ffb84f" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M24 30 Q32 22 40 30 L38 44 Q32 50 26 44 Z" fill="rgba(255,184,79,.1)" stroke="#ffb84f" stroke-width="2"/>
+      <circle cx="20" cy="20" r="2" fill="#4fffdf" class="intro-spark"/><circle cx="46" cy="22" r="1.5" fill="#4f7fff" class="intro-spark"/>
+      <text x="32" y="40" text-anchor="middle" fill="#4fffdf" font-size="11" font-weight="700">✦</text>`,
+  },
+  {
+    color: '#4f7fff',
+    secondary: '#9b5fff',
+    svg: `<path d="M32 8 L40 44 L32 38 L24 44 Z" fill="rgba(79,127,255,.2)" stroke="#4f7fff" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M28 44 L32 52 L36 44" fill="none" stroke="#9b5fff" stroke-width="2" stroke-linecap="round"/>
+      <ellipse cx="32" cy="48" rx="6" ry="3" fill="rgba(155,95,255,.35)" class="intro-flame"/>
+      <circle cx="32" cy="22" r="3" fill="#4fffdf" opacity=".8"/>`,
+  },
+];
+
+/**
+ * Dynamic intro icon — changes automatically with intro step index.
+ * @param {number} stepIndex 0-based
+ */
+export function introStepIconHtml(stepIndex) {
+  const idx = Math.max(0, Math.min(INTRO_STEP_ART.length - 1, Number(stepIndex) || 0));
+  const art = INTRO_STEP_ART[idx];
+  const launchCls = idx === INTRO_STEP_ART.length - 1 ? ' intro-icon-launch' : '';
+  return `<div class="intro-icon-wrap intro-icon-enter${launchCls}" data-intro-step="${idx}" style="--intro-color:${art.color};--intro-color2:${art.secondary}" aria-hidden="true">
+    <div class="intro-icon-glow"></div>
+    <svg class="intro-icon-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${art.svg}</svg>
+  </div>`;
+}
+
+export function introStepCount() {
+  return INTRO_STEP_ART.length;
+}
+
 export function founderPortrait(found, opts = {}) {
   if (!found?.species) return '';
   return portraitHtml(found.species.id, {

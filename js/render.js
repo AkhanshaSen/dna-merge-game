@@ -53,7 +53,7 @@ import {
 import { fbCrossEndUi } from './fallbacks.js';
 import { CROSS_TIER } from './cross-outcomes.js';
 import { gambitOddsPreview } from './game-logic.js';
-import { INTRO_STEPS, INTRO_STEP_COUNT, introStepIndex, nextGameNumber } from './game-intro.js';
+import { nextGameNumber } from './game-intro.js';
 import { buildHistorySections, formatHistoryTs, stageFromRow } from './history-groups.js';
 import {
   gameLoopStripHtml,
@@ -65,6 +65,7 @@ import {
   shouldShowHint,
 } from './player-guide.js';
 import { syncScene } from './scene3d.js';
+import { renderIntroCarousel, pauseIntroAutoAdvance } from './intro-carousel.js';
 import {
   portraitHtml,
   founderPortrait,
@@ -255,31 +256,7 @@ function renderIntroOverlay() {
     root.id = 'tutorial-root';
     document.body.appendChild(root);
   }
-  if (!game.showIntro) {
-    root.innerHTML = '';
-    return;
-  }
-  const idx = introStepIndex();
-  const step = INTRO_STEPS[idx];
-  const gNum = nextGameNumber();
-  const dots = INTRO_STEPS.map((_, i) => `<span class="intro-dot${i === idx ? ' on' : ''}"></span>`).join('');
-  const actions = step.isStart
-    ? `<button type="button" class="btn btn-p btn-lg intro-pulse" data-action="start-game">Yes — begin Game ${gNum}</button>
-       <button type="button" class="btn btn-d" data-action="decline-start-game">Not now</button>`
-    : `${idx > 0 ? '<button type="button" class="btn btn-s" data-action="intro-prev">Back</button>' : ''}
-       <button type="button" class="btn btn-s" data-action="intro-skip">Skip intro</button>
-       <button type="button" class="btn btn-p" data-action="intro-next">Next</button>`;
-  root.innerHTML = `<div class="intro-overlay anim-up">
-    <div class="intro-card intro-card-step-${idx}">
-      <div class="intro-icon intro-pulse">${step.icon}</div>
-      <div class="intro-dots">${dots}</div>
-      <div class="intro-step-lbl">Step ${idx + 1} / ${INTRO_STEP_COUNT}</div>
-      <div class="intro-title">${step.title}</div>
-      ${step.subtitle ? `<div class="intro-subtitle">${step.subtitle}</div>` : ''}
-      <div class="intro-body">${step.body}</div>
-      <div class="intro-actions">${actions}</div>
-    </div>
-  </div>`;
+  renderIntroCarousel(root);
 }
 
 function startGameHeroHtml() {

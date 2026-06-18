@@ -1,5 +1,6 @@
 import { render } from './render.js';
 import { initScene } from './scene3d.js';
+import { bindIntroAutoAdvance, pauseIntroAutoAdvance } from './intro-carousel.js';
 import {
   switchView,
   pick,
@@ -88,6 +89,7 @@ Object.assign(window, {
 
 initLobby();
 initScene();
+bindIntroAutoAdvance(render);
 
 document.getElementById('tabs').addEventListener('click', (e) => {
   const tb = e.target.closest('.tb');
@@ -192,6 +194,7 @@ document.body.addEventListener('click', (e) => {
     return;
   }
   if (!e.target.closest('#tutorial-root')) return;
+  pauseIntroAutoAdvance();
   const el = e.target.closest('[data-action]');
   if (!el) return;
   const { action } = el.dataset;

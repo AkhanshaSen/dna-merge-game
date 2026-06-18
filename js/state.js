@@ -48,6 +48,8 @@ export const game = {
   /** Intro / start-game overlay */
   showIntro: false,
   introStep: 0,
+  /** Slide direction for intro animation: 1 next, -1 prev */
+  introAnimDir: 1,
   /** Player must confirm Start Game before merge (lobby) */
   gameAwaitingStart: true,
   recordsFilter: 'all',

@@ -417,5 +417,14 @@ export function syncScene(game) {
   applyPalette(realmFromGame(game), 1);
   updateVitality(game.PHASE === 'life' ? game.healthMeter ?? 100 : 100, 1);
 
-  document.body.classList.toggle('scene-dim', game.VIEW !== 'lab');
+  const introOn = !!game.showIntro;
+  document.body.classList.toggle('scene-intro', introOn);
+  document.body.classList.toggle('scene-dim', game.VIEW !== 'lab' || introOn);
+
+  if (helixGroup && introOn) {
+    helixGroup.visible = true;
+    const step = Math.max(0, Math.min(6, game.introStep ?? 0));
+    helixGroup.position.x = lerp(helixGroup.position.x, step <= 1 ? -1.2 : -2.8, 0.08);
+    helixGroup.scale.setScalar(lerp(helixGroup.scale.x, step === 0 ? 1.2 : step === 6 ? 1.05 : 1, 0.08));
+  }
 }

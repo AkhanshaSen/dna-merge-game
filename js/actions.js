@@ -329,16 +329,19 @@ export function showTutorial() {
 export function introNext() {
   const idx = introStepIndex();
   if (idx >= INTRO_STEP_COUNT - 1) return;
+  game.introAnimDir = 1;
   game.introStep = idx + 1;
   render();
 }
 
 export function introPrev() {
+  game.introAnimDir = -1;
   game.introStep = Math.max(0, introStepIndex() - 1);
   render();
 }
 
 export function introSkipToStart() {
+  game.introAnimDir = 1;
   openIntroStartPrompt();
   render();
 }
