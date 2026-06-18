@@ -1,4 +1,5 @@
 import { render } from './render.js';
+import { initScene } from './scene3d.js';
 import {
   switchView,
   pick,
@@ -86,6 +87,7 @@ Object.assign(window, {
 });
 
 initLobby();
+initScene();
 
 document.getElementById('tabs').addEventListener('click', (e) => {
   const tb = e.target.closest('.tb');

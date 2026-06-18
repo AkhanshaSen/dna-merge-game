@@ -7,6 +7,7 @@ import {
   gameWinnerEligible,
 } from './cross-outcomes.js';
 import { fbGameEndVerdict } from './fallbacks.js';
+import { recordPortrait } from './creature-visuals.js';
 
 /** e.g. "Game 1 · Cross 3 (final cross)" */
 export function gameProgressLabel(opts = {}) {
@@ -14,6 +15,23 @@ export function gameProgressLabel(opts = {}) {
   const c = game.subRoundIndex || 1;
   const tagFinal = opts.finalTag !== false && c >= SUB_ROUNDS_PER_ROUND;
   return `Game ${g} · Cross ${c}${tagFinal ? ' (final cross)' : ''}`;
+}
+
+/** Crosses that finished without extinction this game. */
+export function crossesPassedCount(results = game.roundCrossResults) {
+  return (results || []).filter((r) => {
+    const tier = r.tier || (r.outcome === 'extinct' ? CROSS_TIER.EXTINCT : CROSS_TIER.FULL_LIFE);
+    return tier !== CROSS_TIER.EXTINCT;
+  }).length;
+}
+
+/** Stats-track line: Game N · Cross M · Passed P · Passes R */
+export function gameProgressTrackLabel() {
+  const parts = [gameProgressLabel({ finalTag: false })];
+  const passed = crossesPassedCount();
+  if (passed > 0) parts.push(`Passed <strong class="track-passed">${passed}</strong>`);
+  parts.push(`Passes <strong class="track-passes">${game.crossPassesRemaining ?? 0}</strong>`);
+  return parts.join(' · ');
 }
 
 export function gameProgressBannerHtml(opts = {}) {
@@ -73,6 +91,8 @@ export function recordCrossOutcome(tier, meta = {}) {
     crossIndex: cross,
     name: game.HYBRID.name,
     emoji: game.HYBRID.emoji || '🧬',
+    pA: game.HYBRID.parentA?.species?.id,
+    pB: game.HYBRID.parentB?.species?.id,
     tier: tierNorm,
     outcome: tierNorm === CROSS_TIER.EXTINCT ? 'extinct' : tierNorm === CROSS_TIER.FULL_LIFE ? 'survive' : 'partial',
     fullLife: tierNorm === CROSS_TIER.FULL_LIFE,
@@ -147,7 +167,7 @@ export function roundCrossSummaryHtml() {
           : `<div class="cross-thrive cross-thrive-dead"><strong>Extinct</strong> — line ended this cross</div>`;
       return `<div class="cross-result-card ${cardCls}">
         <div class="cross-result-hdr">
-          <span class="cross-result-emoji">${r.emoji}</span>
+          ${recordPortrait(r.pA, r.pB, { size: 'sm', animate: true, className: 'cross-result-portrait' })}
           <div>
             <div class="cross-result-name">Cross ${r.crossIndex} · ${r.name}</div>
             <div class="cross-result-outcome">${TIER_OUTCOME_LABEL[tier] || tier}</div>

@@ -43,10 +43,12 @@ import {
 import { isRevivalEligible, revivalHintReason } from './extinction-revival.js';
 import {
   gameProgressLabel,
+  gameProgressTrackLabel,
   gameProgressBannerHtml,
   roundForecastStats,
   roundCrossSummaryHtml,
   gameEndVerdictMessage,
+  crossesPassedCount,
 } from './round-tracker.js';
 import { fbCrossEndUi } from './fallbacks.js';
 import { CROSS_TIER } from './cross-outcomes.js';
@@ -62,6 +64,16 @@ import {
   settingsGuideHtml,
   shouldShowHint,
 } from './player-guide.js';
+import { syncScene } from './scene3d.js';
+import {
+  portraitHtml,
+  founderPortrait,
+  hybridFromFounders,
+  hybridFromHybrid,
+  recordPortrait,
+  dynIcon,
+  lifeStageIcon,
+} from './creature-visuals.js';
 
 const LAB_FILTERS = [
   { id: 'all', label: 'All' },
@@ -80,6 +92,7 @@ export function render() {
   renderMain();
   renderIntroOverlay();
   renderDevilModal();
+  syncScene(game);
 }
 
 function renderRunStatus() {
@@ -92,6 +105,9 @@ function renderRunStatus() {
   const lab = fmtRes(game.ST.resources);
   const est = estimatedDeploysLeft(game.ST.resources);
   const gambitTag = game.gambitMode ? `<span class="tag tag-devil">Low lab</span>` : '';
+  const passed = game.roundActive ? crossesPassedCount() : 0;
+  const passedTag =
+    passed > 0 ? `<span class="tag tag-passed">Passed ${passed}</span>` : '';
   const gameLbl = game.roundActive
     ? gameProgressLabel({ finalTag: false })
     : game.gameAwaitingStart
@@ -106,6 +122,7 @@ function renderRunStatus() {
   el.innerHTML = `
     ${startBtn}
     <span class="tag tag-game">${gameLbl}</span>
+    ${passedTag}
     <span class="tag tag-p">Difficulty · ${camp.label}</span>
     <span class="tag tag-b">Cross ${cross}</span>
     <span class="tag tag-a">Actions left ${passes}</span>
@@ -173,7 +190,7 @@ function renderStats() {
     (game.HYBRID || game.PHASE === 'select' || game.PHASE === 'life');
 
   const track = showTrack
-    ? `<div class="cytrack anim-up">${pills}<div class="cybreedlbl">${game.roundActive ? gameProgressLabel() : 'Awaiting Start Game'}${miniLife} · Passes <strong>${game.crossPassesRemaining ?? 0}</strong></div></div>`
+    ? `<div class="cytrack anim-up">${pills}<div class="cybreedlbl">${game.roundActive ? gameProgressTrackLabel() : 'Awaiting Start Game'}${miniLife}</div></div>`
     : '';
 
   const labNum = game.gameAwaitingStart ? '—' : fmtRes(game.ST.resources);
@@ -296,7 +313,7 @@ function slotHtml(found) {
   const sp = found.species;
   const ind = found.individual;
   return `
-    <span class="mslot-em">${sp.emoji}</span>
+    ${founderPortrait(found, { size: 'sm', slot: null, animate: true, className: 'mslot-portrait' })}
     <div class="mslot-nm">${ind.displayName}</div>
     <div class="mslot-sub">${sp.name} · ${ind.gender}<br/><span class="mslot-sub-dim">${ind.personality}</span></div>`;
 }
@@ -344,6 +361,7 @@ function mergePreviewHtml() {
     .join('');
   return `<div class="merge-preview anim-up">
     <div class="merge-preview-hdr">Genetics preview</div>
+    <div class="merge-preview-visual">${hybridFromFounders(A, B, { size: 'md' })}</div>
     ${badge}
     <div class="merge-preview-score" style="color:${col}">Viability band ${prev.scoreMin}–${prev.scoreMax}</div>
     ${traitRows}
@@ -414,7 +432,8 @@ function renderSelect(m) {
           return `<button type="button" class="ind ${cls}" ${interact} title="${ind.displayName}">
           ${slot}
           <span class="${badgeCls} ind-badge">${sp.iucn}</span>
-          <div class="ind-nm">${sp.emoji} ${ind.displayName}</div>
+          ${portraitHtml(sp.id, { taxon: sp.taxon, realm: sp.realm, size: 'xs', animate: !locked, slot: isA ? 'a' : isB ? 'b' : null })}
+          <div class="ind-nm">${ind.displayName}</div>
           <div class="ind-meta">${ind.gender}</div>
           <div class="ind-person">${ind.personality}</div>
         </button>`;
@@ -423,7 +442,7 @@ function renderSelect(m) {
 
       return `<div class="species-section anim-up">
       <div class="species-head">
-        <span class="sp-em">${sp.emoji}</span>
+        ${portraitHtml(sp.id, { taxon: sp.taxon, realm: sp.realm, size: 'sm', animate: true, className: 'species-head-portrait' })}
         <strong>${sp.name}</strong>
         <span class="sp-status">· ${sp.status}</span>
         <span class="${taxonChipClass(sp.taxon)}">${TAXON_LABEL[sp.taxon]}</span>
@@ -535,7 +554,7 @@ function renderHybrid(m) {
     ${renderGoalStrip(game)}
     ${lifeStageTimelineHtml(1)}
     <div class="hhdr">
-      <div class="hem anim-float">${h.emoji}</div>
+      ${hybridFromHybrid(h, { size: 'hero', animate: true, lifeStage: 1 })}
       <div class="hmeta">
         <div class="hnm">${h.name}</div>
         <div class="hpar">🧬 Parents · ${pa} × ${pb}<br/><span class="hpar-sub">${h.parentA.species.name}${
@@ -587,7 +606,7 @@ function gambitPanelHtml() {
     <p class="gambit-copy">You cannot fund standard deploys. Pick a <strong>forecast</strong> and roll fate on resolve — or choose <strong>Just Monitor</strong> (same odds, 0 lab).</p>
     <button type="button" class="cc deploy-observe${observeOn ? ' on' : ''}" data-action="pick-life-res" data-res-id="observe">
       <span class="lab-cost-badge lab-free">0 🧪</span>
-      <span class="ci">👁️</span>
+      ${dynIcon('deploy', 'observe', { size: 34 })}
       <div class="ctname">Just Monitor</div>
       <div class="ccdesc">0 lab — watch and forecast without deploy bonus.</div>
     </button>
@@ -743,7 +762,7 @@ function carePerkHtml() {
   const perks = CARE_PERKS.map(
     (p) =>
       `<button type="button" class="cc" data-action="pick-care-perk" data-perk-id="${p.id}">
-      <span class="ci">${p.emoji}</span>
+      ${dynIcon('perk', p.id, { glow: false, size: 32, color: '#ffb84f' })}
       <div class="ctname">${p.label}</div>
       <div class="ccdesc">${p.desc}</div>
     </button>`,
@@ -829,7 +848,7 @@ function renderLifePhase(m) {
       return `
     <button type="button" class="${cls}" ${action}>
       ${r.type !== 'observe' ? `<span class="lab-cost-badge">−${cost} 🧪</span>` : '<span class="lab-cost-badge lab-free">0 🧪</span>'}
-      <span class="ci">${r.emoji}</span>
+      ${dynIcon('deploy', r.id, { glow: syn || fallbackRec, pulse: game.LIFE_RES?.id === r.id, size: 34 })}
       <div class="ctname">${r.name}</div>
       ${tag}
       <div class="ccdesc">${r.desc}</div>
@@ -925,8 +944,9 @@ function renderLifePhase(m) {
     ${gameProgressBannerHtml({ compact: true })}
     ${lifeStageStepStrip()}
     <div class="chdr">
-      <div class="cbadge c2">${stageIdx}</div>
+      ${lifeStageIcon(stageIdx)}
       <div><div class="ctit">Life stage ${stageIdx}/${LIFE_STAGES_PER_SUBROUND} — ${stageLabel}</div><div class="csub">${gameProgressLabel({ finalTag: false })} · ${h.name} · lab <strong>${fmtRes(game.ST.resources)}/${RESOURCE_SOFT_CAP}</strong></div></div>
+      ${hybridFromHybrid(h, { size: 'sm', animate: true, className: 'life-hybrid-portrait', lifeStage: stageIdx })}
     </div>
     ${lifeStageTimelineHtml(stageIdx)}
     ${traitBarsHtml(h.traits)}
@@ -934,11 +954,16 @@ function renderLifePhase(m) {
     ${defectCardHtml(h)}
     ${secretKeyHtml()}
     <div class="ecard anim-up s1">
-      <div class="elbl">⚡ Active crisis</div>
-      <div class="enm">${ev.emoji} ${ev.name}</div>
-      <div class="edesc">${ev.desc}</div>
-      <div class="edelta">${gentleMode ? 'Crisis pressure' : 'Score modifier'}: ${ev.impact}</div>
-      <div class="crisis-deploy-hint">${crisisHint}</div>
+      <div class="ecard-inner">
+        ${dynIcon('crisis', ev.id, { glow: true, pulse: true, size: 44, color: '#ff4f6b' })}
+        <div class="ecard-body">
+          <div class="elbl">⚡ Active crisis</div>
+          <div class="enm">${ev.name}</div>
+          <div class="edesc">${ev.desc}</div>
+          <div class="edelta">${gentleMode ? 'Crisis pressure' : 'Score modifier'}: ${ev.impact}</div>
+          <div class="crisis-deploy-hint">${crisisHint}</div>
+        </div>
+      </div>
     </div>
     ${gambit || gentleMode ? '' : `<div class="tripred matrix-wrap anim-up">
       <div class="tripred-title">Scoring matrix</div>
@@ -972,9 +997,11 @@ function renderSubRoundEnd(m) {
     tier === CROSS_TIER.FULL_LIFE ? 'ng' : tier === CROSS_TIER.EXTINCT || tier === CROSS_TIER.WOUNDED_END ? 'nr' : 'nw';
   m.innerHTML = `
     <div class="obanner ${ui.bannerCls}">
-      <span class="oem">${ui.emoji}</span>
-      <div class="otit ${titCls}">${ui.title}</div>
-      <div class="osub">${ui.subtitle}</div>
+      ${hybridFromHybrid(game.HYBRID, { size: 'lg', animate: true, className: 'obanner-portrait', lifeStage: 4 })}
+      <div class="obanner-text">
+        <div class="otit ${titCls}">${ui.title}</div>
+        <div class="osub">${ui.subtitle}</div>
+      </div>
     </div>
     ${game.FINAL_NARR ? `<div class="narr ${narrCls} anim-up s1">${game.FINAL_NARR}</div>` : ''}
     <button type="button" class="btn btn-p btn-lg" data-action="continue-sub-round">${game.subRoundIndex >= SUB_ROUNDS_PER_ROUND ? 'See round summary →' : 'Next animal cross →'}</button>`;
@@ -1052,7 +1079,7 @@ function renderRecords(m) {
     ? fame
         .map(
           (h) => `<div class="hcard hf">
-        <span class="hem2">${h.emoji}</span>
+        ${recordPortrait(h.pA, h.pB, { size: 'md', animate: true, className: 'hcard-portrait' })}
         <div class="hnm2">${h.name}</div>
         <div class="hpar2">${founderFooter(h)}</div>
         <div class="hscore hscore-good">Score: ${h.score}${h.fullLife ? ' · Natural life' : ''}</div>
@@ -1064,7 +1091,7 @@ function renderRecords(m) {
     ? extinct
         .map(
           (e) => `<div class="hcard he">
-        <span class="hem2">${e.emoji || '💀'}</span>
+        ${recordPortrait(e.pA, e.pB, { size: 'md', animate: false, className: 'hcard-portrait hcard-portrait-extinct' })}
         <div class="hnm2">${e.name}</div>
         <div class="hpar2">🔒 ${founderFooter(e)}</div>
         <div class="hscore hscore-bad">Permanently extinct</div>
