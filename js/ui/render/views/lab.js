@@ -2,14 +2,29 @@ import { TMETA } from '../../../core/constants.js';
 import { SPECIES, TAXON_LABEL, taxonChipClass, REALM_LABEL, realmChipClass } from '../../../core/species.js';
 import { game } from '../../../core/state.js';
 import { scoreColor } from '../../../core/game-logic.js';
-import { mergeBlockReason, previewBlend } from '../../../core/breeding.js';
+import { mergeBlockReason, previewBlend, founderTraits } from '../../../core/breeding.js';
 import { breedCampaignBanner } from '../../../content/cycle-meta.js';
 import { gameProgressBannerHtml, gameProgressLabel } from '../../../game/round-tracker.js';
-import { shouldShowHint, renderContextHint } from '../../../content/player-guide.js';
+import { shouldShowHint, renderContextHint, renderGoalStrip } from '../../../content/player-guide.js';
 import { portraitHtml, hybridFromFounders } from '../../visuals/creature-visuals.js';
 import { coachBanner } from '../helpers.js';
 import { filterChipsHtml } from '../../components/filter-chips.js';
 import { mergeDockHtml } from '../../components/merge-dock.js';
+
+const FOUNDER_STAT_KEYS = ['adaptability', 'immune', 'climate', 'social'];
+
+function founderStatsHtml(traits) {
+  return `<div class="ind-stats">${FOUNDER_STAT_KEYS.map((k) => {
+    const v = traits[k] ?? 0;
+    const meta = TMETA[k];
+    const lbl = meta.label.replace(/^[^\s]+\s/, '').split(' ')[0];
+    return `<div class="ind-stat-row">
+      <span class="ind-stat-lbl">${lbl}</span>
+      <div class="ind-stat-bar"><div class="ind-stat-fill" style="width:${v}%;background:${meta.color}"></div></div>
+      <span class="ind-stat-val">${v}</span>
+    </div>`;
+  }).join('')}</div>`;
+}
 
 function speciesPassesFilter(sp) {
   const f = game.labFilter || 'all';
@@ -113,6 +128,7 @@ export function renderSelect(m) {
           <div class="ind-nm">${ind.displayName}</div>
           <div class="ind-meta">${ind.gender}</div>
           <div class="ind-person">${ind.personality}</div>
+          ${founderStatsHtml(founderTraits(tempFound))}
         </button>`;
         })
         .join('');
@@ -149,12 +165,13 @@ export function renderSelect(m) {
     ${game.gameAwaitingStart && shouldShowHint('welcomeLobby', game.ST) ? renderContextHint('welcomeLobby') : ''}
     ${game.roundActive ? gameProgressBannerHtml() : ''}
     ${breedCampaignBanner(game.ST.breedRound ?? 1)}
+    ${game.roundActive ? `<div class="lab-mobile-goal">${renderGoalStrip(game)}</div>` : ''}
     <div class="lab-dashboard${game.gameAwaitingStart ? ' lab-layout-locked' : ''}${bothSelected ? ' lab-has-popup' : ''}">
       <div class="lab-scroll">
         <div class="card gene-lab-card glass-panel anim-up">
           <div class="ctitle">${game.roundActive ? gameProgressLabel() : 'Gene Lab'} — Choose founders</div>
           <p class="gene-lab-lede guide-lede">
-            Scroll the carousel and pick two founders — the merge bridge pops up when both are selected.
+            Tap two founders from the grid — the merge bridge pops up when both are selected.
           </p>
           ${filterChipsHtml()}
           ${mergePreviewHtml()}

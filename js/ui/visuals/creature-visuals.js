@@ -16,6 +16,10 @@ export const SPECIES_VIS = {
   'sea-turtle': { archetype: 'chelonian', primary: '#4a8878', secondary: '#284840', accent: '#78b8a8' },
   saola: { archetype: 'antelope', primary: '#a89078', secondary: '#584838', accent: '#d8c0a8' },
   orangutan: { archetype: 'primate', primary: '#c87848', secondary: '#683818', accent: '#f0a878' },
+  'african-wild-dog': { archetype: 'feline', primary: '#c87830', secondary: '#684018', accent: '#e8a860' },
+  'california-condor': { archetype: 'avian', primary: '#8a5040', secondary: '#4a2820', accent: '#c89070' },
+  gharial: { archetype: 'amphibian', primary: '#5a9878', secondary: '#284840', accent: '#88c8a8' },
+  'humpback-whale': { archetype: 'cetacean', primary: '#5a8ab8', secondary: '#284860', accent: '#98c8e8' },
 };
 
 const TAXON_FALLBACK = {

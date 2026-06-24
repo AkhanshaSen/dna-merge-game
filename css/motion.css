@@ -1,0 +1,75 @@
+/* UI micro-animations — presentation only */
+@keyframes founderPickPop{
+  0%{transform:scale(.94)}
+  55%{transform:scale(1.04)}
+  100%{transform:scale(1)}
+}
+@keyframes founderGlowA{
+  0%,100%{box-shadow:0 0 0 2px rgba(79,127,255,.35),0 10px 32px rgba(79,127,255,.14)}
+  50%{box-shadow:0 0 0 3px rgba(79,127,255,.55),0 14px 40px rgba(79,127,255,.22)}
+}
+@keyframes founderGlowB{
+  0%,100%{box-shadow:0 0 0 2px rgba(155,95,255,.32),0 10px 32px rgba(155,95,255,.12)}
+  50%{box-shadow:0 0 0 3px rgba(155,95,255,.52),0 14px 38px rgba(155,95,255,.2)}
+}
+@keyframes glassShimmer{
+  0%{background-position:0% 50%}
+  100%{background-position:200% 50%}
+}
+@keyframes mergeDockGlow{
+  0%,100%{box-shadow:0 18px 48px rgba(0,0,0,.45),0 0 0 1px rgba(90,130,255,.18),0 0 24px rgba(155,95,255,.12)}
+  50%{box-shadow:0 22px 56px rgba(0,0,0,.5),0 0 0 1px rgba(155,95,255,.35),0 0 36px rgba(79,127,255,.2)}
+}
+@keyframes tagPulse{
+  0%,100%{opacity:1;transform:translateY(0)}
+  50%{opacity:.92;transform:translateY(-1px)}
+}
+@keyframes globeStatPulse{
+  0%,100%{text-shadow:0 0 12px rgba(79,255,223,.25)}
+  50%{text-shadow:0 0 22px rgba(79,255,223,.45)}
+}
+@keyframes synergyPulse{
+  0%,100%{box-shadow:0 0 0 1px rgba(45,255,179,.15),0 0 18px rgba(45,255,179,.12)}
+  50%{box-shadow:0 0 0 1px rgba(45,255,179,.35),0 0 28px rgba(45,255,179,.28)}
+}
+@keyframes bridgeCorePulse{
+  0%,100%{transform:translate(-50%,-50%) scale(1);opacity:1}
+  50%{transform:translate(-50%,-50%) scale(1.25);opacity:.85}
+}
+@keyframes navSlideIn{
+  from{opacity:0;transform:translateX(-6px)}
+  to{opacity:1;transform:none}
+}
+
+.ind.sa{animation:founderPickPop .35s cubic-bezier(.16,1,.3,1) both,founderGlowA 2.8s ease-in-out infinite}
+.ind.sb{animation:founderPickPop .35s cubic-bezier(.16,1,.3,1) both,founderGlowB 2.8s ease-in-out infinite .15s}
+.ind:not(.locked):hover{transform:translateY(-3px);transition:transform .18s ease,box-shadow .18s ease}
+
+.glass-panel:not(.merge-bridge-dock-popup){
+  background-size:200% 200%;
+  background-image:linear-gradient(150deg,rgba(14,24,41,.88),rgba(9,17,31,.92),rgba(18,30,50,.88),rgba(9,17,31,.92));
+  animation:glassShimmer 18s ease-in-out infinite alternate;
+}
+.merge-bridge-dock-popup{animation:mergeDockPop .38s cubic-bezier(.16,1,.3,1) both,mergeDockGlow 3.2s ease-in-out infinite .4s}
+.merge-bridge-core{animation:bridgeCorePulse 2s ease-in-out infinite}
+
+.mission-tags .tag{animation:tagPulse 4s ease-in-out infinite}
+.mission-tags .tag:nth-child(2){animation-delay:.4s}
+.mission-tags .tag:nth-child(3){animation-delay:.8s}
+.mission-tags .tag:nth-child(4){animation-delay:1.2s}
+.globe-stat-value{animation:globeStatPulse 3.5s ease-in-out infinite}
+
+.cc.synergy-match:not(:disabled){animation:synergyPulse 2.4s ease-in-out infinite}
+.nav-item.on{animation:navSlideIn .35s cubic-bezier(.16,1,.3,1) both}
+
+.coach-banner,.game-progress,.guide-tip{
+  transition:opacity .25s ease,transform .25s ease;
+}
+
+@media (prefers-reduced-motion:reduce){
+  .ind.sa,.ind.sb,.glass-panel,.merge-bridge-dock-popup,.merge-bridge-core,
+  .mission-tags .tag,.globe-stat-value,.cc.synergy-match,.nav-item.on{
+    animation:none!important;
+  }
+  .ind:not(.locked):hover{transform:none}
+}

@@ -1,4 +1,4 @@
-/* Gene Lab — carousel, merge popup, layout */
+/* Gene Lab — founder grid, merge popup, mobile play-first layout */
 .lab-view-stack{
   display:flex;
   flex-direction:column;
@@ -9,35 +9,111 @@
   padding:.15rem 0;
 }
 .lab-view-stack > *{width:100%;max-width:100%;min-width:0}
+.lab-mobile-goal{display:none}
 
-.lab-dashboard{display:flex;flex-direction:column;gap:1rem;width:100%}
+.lab-dashboard{display:flex;flex-direction:column;gap:.65rem;width:100%}
 .lab-dashboard .lab-scroll{
   flex:1;
-  min-height:200px;
-  overflow-y:auto;
-  padding-right:4px;
+  min-height:0;
+  overflow-y:visible;
+  padding-right:0;
   padding-bottom:.35rem;
 }
 .lab-has-popup .lab-scroll{
-  padding-bottom:calc(148px + env(safe-area-inset-bottom));
+  padding-bottom:calc(132px + env(safe-area-inset-bottom));
 }
 
+/* Founder cards — fill row width (no empty gutter) */
 .founder-carousel{
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
   gap:.55rem;
-  overflow-x:auto;
-  scroll-snap-type:x mandatory;
-  padding:.35rem .15rem .65rem;
-  -webkit-overflow-scrolling:touch;
+  width:100%;
+  padding:.2rem 0 .5rem;
 }
 .founder-carousel .ind{
-  flex:0 0 148px;
-  scroll-snap-align:start;
+  width:100%;
+  min-width:0;
 }
-.founder-carousel::-webkit-scrollbar{height:5px}
-.founder-carousel::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 
-/* ── Merge bridge (inline fallback) ── */
+/* Filter chips — horizontal scroll on narrow screens only */
+.lab-filters{
+  position:sticky;
+  top:0;
+  z-index:4;
+  display:flex;
+  gap:.35rem;
+  flex-wrap:wrap;
+  padding:.5rem 0 .65rem;
+  margin-bottom:.25rem;
+  background:linear-gradient(180deg,rgba(9,17,31,.95) 75%,transparent);
+}
+@media(max-width:640px){
+  .lab-filters{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .lab-filters::-webkit-scrollbar{display:none}
+}
+
+.species-section{margin-bottom:.85rem}
+.species-head{margin-bottom:.45rem}
+
+.ind-stats{
+  margin-top:.45rem;
+  padding-top:.4rem;
+  border-top:1px solid rgba(255,255,255,.06);
+  display:flex;
+  flex-direction:column;
+  gap:.22rem;
+  width:100%;
+}
+.ind-stat-row{
+  display:grid;
+  grid-template-columns:3.2rem 1fr 1.4rem;
+  align-items:center;
+  gap:.25rem;
+  font-size:.58rem;
+}
+.ind-stat-lbl{color:var(--text3);text-transform:uppercase;letter-spacing:.03em}
+.ind-stat-bar{height:3px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+.ind-stat-fill{height:100%;border-radius:3px;opacity:.9}
+.ind-stat-val{font-family:var(--mono);font-size:.56rem;color:var(--text2);text-align:right}
+
+@media(max-width:1099px){
+  .lab-view-stack{gap:.55rem;padding:0}
+  .lab-view-stack .coach-banner,
+  .lab-view-stack .game-progress,
+  .lab-view-stack .guide-tip{
+    padding:.5rem .65rem;
+    font-size:.7rem;
+    margin-bottom:0;
+  }
+  .lab-view-stack .game-progress{display:none}
+  body[data-view="lab"] .lab-view-stack .campaign-banner{display:none}
+  .lab-mobile-goal{display:block;margin:0}
+  .lab-mobile-goal .goal-strip{margin:0;padding:.5rem .65rem;font-size:.66rem}
+  .lab-view-stack .game-progress-title{font-size:.82rem}
+  .gene-lab-card{padding:1rem 1.05rem!important}
+  .gene-lab-lede{font-size:.75rem;margin-bottom:.65rem}
+  .founder-carousel{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:.45rem;
+  }
+  .lab-has-popup .lab-scroll{
+    padding-bottom:calc(118px + env(safe-area-inset-bottom));
+  }
+}
+@media(min-width:640px) and (max-width:1099px){
+  .founder-carousel{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(min-width:1100px){
+  .founder-carousel{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+
+/* ── Merge bridge ── */
 .merge-bridge-dock{
   display:grid;
   grid-template-columns:minmax(108px,132px) auto minmax(108px,132px) minmax(0,auto);
@@ -94,7 +170,7 @@
 .btn-merge-bridge:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 28px rgba(79,127,255,.35)}
 .btn-merge-bridge:disabled{opacity:.35;cursor:not-allowed}
 
-/* ── Popup merge dock (both founders selected) ── */
+/* ── Popup merge dock ── */
 .merge-dock-popup{
   position:fixed;
   z-index:60;
@@ -129,26 +205,23 @@
 
 @media(max-width:1099px){
   .merge-dock-popup{
-    left:1rem;
-    right:1rem;
-    bottom:calc(4.75rem + env(safe-area-inset-bottom));
+    left:.75rem;
+    right:.75rem;
+    bottom:calc(3.85rem + env(safe-area-inset-bottom));
   }
   .merge-bridge-dock{
     grid-template-columns:1fr 1fr;
     grid-template-rows:auto auto auto;
     max-width:100%;
+    padding:.7rem .75rem;
   }
   .merge-bridge-center{grid-column:1/-1}
   .btn-merge-bridge{grid-column:1/-1;width:100%;justify-self:stretch}
-  .merge-slot{max-width:none}
+  .merge-slot{max-width:none;min-height:96px}
 }
 
 @media(max-width:520px){
-  .merge-bridge-dock{
-    grid-template-columns:1fr 1fr;
-    gap:.55rem;
-    padding:.75rem;
-  }
+  .merge-bridge-dock{gap:.5rem;padding:.65rem}
 }
 
 @media (prefers-reduced-motion:reduce){

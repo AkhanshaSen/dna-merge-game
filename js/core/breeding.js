@@ -1,14 +1,64 @@
 import { DEFECT_POOL } from './constants.js';
 
-/** Deterministic-ish micro-variance from founder personality strings */
-function personalityBias(personality, traitKey) {
+const TRAIT_KEYS = [
+  'adaptability',
+  'immune',
+  'reproduction',
+  'climate',
+  'dietary',
+  'size',
+  'social',
+  'camouflage',
+];
+
+function clampTrait(n) {
+  return Math.max(5, Math.min(100, Math.round(n)));
+}
+
+/** FNV-style hash for deterministic per-founder variance */
+function hashStr(s) {
   let h = 2166136261;
-  const s = personality + '|' + traitKey;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  return (Math.abs(h) % 9) - 4;
+  return Math.abs(h);
+}
+
+/** Deterministic trait offset from founder id (−11 … +11) */
+function individualTraitOffset(individualId, traitKey) {
+  const h = hashStr(`${individualId}|${traitKey}`);
+  return (h % 23) - 11;
+}
+
+/** Deterministic-ish micro-variance from founder personality strings */
+function personalityBias(personality, traitKey) {
+  const h = hashStr(`${personality}|${traitKey}|p`);
+  return (h % 9) - 4;
+}
+
+/**
+ * Resolved trait profile for one founder (species baseline + individual identity).
+ * @param {{ species: { traits: Record<string, number> }, individual: { id: string, personality: string, traits?: Record<string, number> } }} found
+ */
+export function founderTraits(found) {
+  if (!found?.species?.traits || !found.individual) return {};
+  const base = found.species.traits;
+  const ind = found.individual;
+  if (ind.traits && typeof ind.traits === 'object') {
+    const t = {};
+    for (const k of TRAIT_KEYS) {
+      t[k] = clampTrait(ind.traits[k] ?? base[k] ?? 50);
+    }
+    return t;
+  }
+  const t = {};
+  for (const k of TRAIT_KEYS) {
+    const offset = individualTraitOffset(ind.id, k);
+    const pers = personalityBias(ind.personality || '', k);
+    t[k] = clampTrait((base[k] ?? 50) + offset + Math.round(pers * 0.35));
+  }
+  return t;
 }
 
 /**
@@ -17,25 +67,15 @@ function personalityBias(personality, traitKey) {
  */
 export function blendTraits(foundA, foundB) {
   const sameSpecies = foundA.species.id === foundB.species.id;
-  const baseA = foundA.species.traits;
-  const baseB = foundB.species.traits;
+  const baseA = founderTraits(foundA);
+  const baseB = founderTraits(foundB);
   const t = {};
-  for (const k of Object.keys(baseA)) {
+  for (const k of TRAIT_KEYS) {
     if (sameSpecies) {
       const mid = (baseA[k] + baseB[k]) / 2;
-      const pers =
-        (personalityBias(foundA.individual.personality, k) +
-          personalityBias(foundB.individual.personality, k)) /
-        2;
-      t[k] = Math.max(5, Math.min(100, Math.round(mid + pers + (Math.random() * 6 - 3))));
+      t[k] = clampTrait(mid + (Math.random() * 6 - 3));
     } else {
-      t[k] = Math.max(
-        5,
-        Math.min(
-          100,
-          Math.round(baseA[k] * 0.5 + baseB[k] * 0.5 + (Math.random() * 14 - 7)),
-        ),
-      );
+      t[k] = clampTrait(baseA[k] * 0.5 + baseB[k] * 0.5 + (Math.random() * 14 - 7));
     }
   }
   return t;
@@ -49,23 +89,19 @@ export function avgScore(traits) {
 /** Projected trait band before merge (no RNG) — Niche-style preview */
 export function previewBlend(foundA, foundB) {
   const sameSpecies = foundA.species.id === foundB.species.id;
-  const baseA = foundA.species.traits;
-  const baseB = foundB.species.traits;
+  const baseA = founderTraits(foundA);
+  const baseB = founderTraits(foundB);
   const traitsMin = {};
   const traitsMax = {};
-  for (const k of Object.keys(baseA)) {
+  for (const k of TRAIT_KEYS) {
     if (sameSpecies) {
       const mid = (baseA[k] + baseB[k]) / 2;
-      const pers =
-        (personalityBias(foundA.individual.personality, k) +
-          personalityBias(foundB.individual.personality, k)) /
-        2;
-      traitsMin[k] = Math.max(5, Math.min(100, Math.round(mid + pers - 6)));
-      traitsMax[k] = Math.max(5, Math.min(100, Math.round(mid + pers + 6)));
+      traitsMin[k] = clampTrait(mid - 6);
+      traitsMax[k] = clampTrait(mid + 6);
     } else {
       const mid = baseA[k] * 0.5 + baseB[k] * 0.5;
-      traitsMin[k] = Math.max(5, Math.min(100, Math.round(mid - 10)));
-      traitsMax[k] = Math.max(5, Math.min(100, Math.round(mid + 10)));
+      traitsMin[k] = clampTrait(mid - 10);
+      traitsMax[k] = clampTrait(mid + 10);
     }
   }
   return {

@@ -59,7 +59,7 @@
   align-items:center;
   justify-content:space-between;
   gap:1.25rem;
-  padding:1.15rem 3.35rem;
+  padding:1.15rem 1.35rem;
   flex-wrap:wrap;
   width:100%;
   box-sizing:border-box;
@@ -157,4 +157,18 @@
   margin:0;
   padding:.62rem .78rem;
   line-height:1.45;
+}
+
+@media(max-width:1099px){
+  .app-sidebar{display:none!important}
+  .mission-band-inner{padding:.75rem 1rem;gap:.65rem}
+  .mission-title{font-size:1.35rem}
+  .mission-tagline{font-size:.72rem;margin:.25rem 0 .45rem}
+  .mission-globe-widget{display:none}
+  .mission-tags{margin-bottom:.45rem}
+  .mission-tags .tag{font-size:.58rem;padding:2px 7px}
+  body[data-view="lab"] .app-rail{display:none}
+  body[data-view="lab"] .app-body{
+    padding-bottom:calc(4.5rem + env(safe-area-inset-bottom));
+  }
 }

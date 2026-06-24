@@ -1,3 +1,4 @@
+import { SPECIES } from '../../core/species.js';
 import { SUB_ROUNDS_PER_ROUND, RESOURCE_SOFT_CAP } from '../../core/constants.js';
 import { game } from '../../core/state.js';
 import { campaignForSlot } from '../../core/campaign.js';
@@ -10,6 +11,8 @@ import {
 import { nextGameNumber } from '../../game/game-intro.js';
 import { renderGoalStrip } from '../../content/player-guide.js';
 import { fmtRes } from './helpers.js';
+
+const FOUNDER_COUNT = SPECIES.reduce((n, sp) => n + sp.individuals.length, 0);
 
 const NAV_ITEMS = [
   { v: 'lab', icon: '🧬', label: 'Gene Lab' },
@@ -26,6 +29,7 @@ function biodiversityAtRiskPct() {
 }
 
 export function renderShell() {
+  document.body.dataset.view = game.VIEW || 'lab';
   renderSidebar();
   renderMissionBand();
   renderStatsRail();
@@ -51,7 +55,7 @@ function renderSidebar() {
     </div>
     <nav class="sidebar-nav" id="tabs" aria-label="Main navigation">${nav}</nav>
     <div class="sidebar-foot">
-      <span class="sidebar-meta">12 species · 36 founders</span>
+      <span class="sidebar-meta">${SPECIES.length} species · ${FOUNDER_COUNT} founders</span>
       <span class="sidebar-meta">💾 Local save</span>
     </div>`;
 }
