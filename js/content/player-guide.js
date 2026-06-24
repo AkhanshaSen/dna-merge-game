@@ -1,4 +1,4 @@
-import { FORECAST_WIN_ACCURACY, RESOURCE_SOFT_CAP, SUB_ROUNDS_PER_ROUND } from './constants.js';
+import { FORECAST_WIN_ACCURACY, RESOURCE_SOFT_CAP, SUB_ROUNDS_PER_ROUND } from '../core/constants.js';
 
 export const INTRO_STEPS = [
   {

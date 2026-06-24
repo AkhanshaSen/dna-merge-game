@@ -1,0 +1,35 @@
+/* History timeline */
+/* ── History rows ── */
+.hrow{display:flex;align-items:center;gap:.7rem;padding:.62rem 0;border-bottom:1px solid var(--border);font-size:.79rem}
+.hrow:last-child{border-bottom:none}
+.hrow-info{flex:1;min-width:0}.hrow-nm{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow-dt{font-size:.7rem;color:var(--text3);margin-top:1px}
+.lrow{padding:.58rem 0;border-bottom:1px solid var(--border)}.lrow:last-child{border-bottom:none}
+.lnm{font-size:.79rem;font-weight:500}.ldt{font-size:.7rem;color:var(--text3);margin-top:2px}
+
+.history-scroll{max-height:280px;overflow-y:auto;padding-right:4px}
+.history-scroll-lg{max-height:320px}
+.history-hint{font-size:.72rem;color:var(--text3);margin-top:.65rem;line-height:1.45}
+.history-game-card{margin-top:.75rem}
+.history-game-hdr{margin-bottom:.55rem}
+.history-game-title{font-size:1rem;font-weight:700;color:var(--text)}
+.history-in-progress{font-size:.75rem;font-weight:600;color:var(--blue)}
+.history-game-meta{font-size:.7rem;color:var(--text3);margin-top:.2rem}
+.history-game-sub{font-size:.68rem;color:var(--text3);margin-top:.35rem}
+.history-game-pills{display:flex;gap:.4rem;flex-wrap:wrap;margin:.55rem 0}
+.history-game-body{border-top:1px solid var(--border);padding-top:.55rem;margin-top:.35rem}
+.history-cross-block{margin-bottom:.85rem;padding-bottom:.65rem;border-bottom:1px solid var(--border)}
+.history-cross-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.history-cross-hdr{font-size:.82rem;font-weight:700;color:var(--text);margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.history-cross-tier{font-size:.65rem;font-weight:600;color:var(--muted);padding:.15rem .45rem;border-radius:4px;background:var(--bg3);border:1px solid var(--border)}
+.history-cross-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);margin:.45rem 0 .25rem}
+.history-cross-empty{font-size:.72rem;color:var(--text3);margin:.25rem 0}
+.history-ts{display:block;font-size:.65rem;font-weight:400;color:var(--text3);margin-top:2px}
+.history-verdict{font-size:.68rem;font-weight:700;padding:.12rem .45rem;border-radius:4px;margin-left:.35rem}
+.history-verdict-win{background:rgba(45,255,179,.12);color:var(--green)}
+.history-verdict-lose{background:rgba(255,100,100,.1);color:#ff9a9a}
+.history-legacy{margin-top:.75rem}
+.history-legacy-note{font-size:.72rem;color:var(--text3);margin:0 0 .65rem;line-height:1.45}
+.outcome-dynamic{font-weight:600}
+.sparkline{display:flex;align-items:flex-end;gap:3px;height:48px;margin:var(--space-2) 0;padding:var(--space-2);background:var(--bg3);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.spark-bar{flex:1;min-width:4px;border-radius:3px 3px 0 0;background:linear-gradient(180deg,var(--purple),rgba(79,127,255,.5));transition:height .3s}

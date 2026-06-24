@@ -1,0 +1,7 @@
+/* Shared UI components */
+.card.glass-panel,.gene-lab-card{border-radius:var(--radius-lg)}
+.card.glass-panel{padding:1.15rem 3.25rem}
+.lab-view-stack .coach-banner,
+.lab-view-stack .game-progress,
+.lab-view-stack .guide-tip{padding:.65rem .85rem}
+.lab-view-stack .gene-lab-card{padding:1.2rem 1.3rem}

@@ -1,0 +1,14 @@
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09111f;--bg2:#0e1829;--bg3:#141f35;--bg4:#1a2840;
+  --border:rgba(90,130,255,0.12);--border2:rgba(90,130,255,0.28);
+  --text:#dde8ff;--text2:#7a90bb;--text3:#48597a;
+  --blue:#4f7fff;--purple:#9b5fff;--green:#2dffb3;
+  --amber:#ffb84f;--red:#ff4f6b;--teal:#4fffdf;
+  --font:'Space Grotesk',sans-serif;--mono:'Space Mono',monospace;
+  --space-1:.35rem;--space-2:.65rem;--space-3:1rem;--space-4:1.35rem;--space-5:2rem;--space-6:3rem;
+  --radius-sm:10px;--radius-md:14px;--radius-lg:18px;
+  --shadow-1:0 8px 28px rgba(0,0,0,.28);--shadow-2:0 16px 48px rgba(0,0,0,.38);
+  --surface-lab:rgba(14,24,41,.85);--surface-crisis:rgba(255,79,107,.06);
+  --stage-1:var(--teal);--stage-2:var(--blue);--stage-3:var(--purple);--stage-4:var(--amber);
+}

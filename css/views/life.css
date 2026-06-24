@@ -1,0 +1,97 @@
+/* Life stage, gambit, receipt, round end */
+/* ── Life stage / ledger / apex ── */
+.life-banner{margin:.85rem 0 1rem;padding:.72rem 1rem;background:var(--bg3);border:1px solid var(--border);border-radius:12px;border-left:3px solid var(--purple)}
+.life-mat{font-size:.84rem;font-weight:700;color:var(--text)}
+.life-age{font-size:.74rem;color:var(--text3);margin-top:.28rem;line-height:1.45}
+.life-round{margin-top:.42rem;font-size:.74rem;color:var(--purple);font-weight:600;line-height:1.45}
+
+.breakdown{margin-top:.85rem;text-align:left}
+.bd-title{font-size:.72rem;color:var(--text2);margin-bottom:.55rem;line-height:1.45}
+.bd-rows{display:flex;flex-direction:column;gap:.38rem}
+.bd-row{display:flex;justify-content:space-between;gap:.65rem;font-size:.72rem;font-family:var(--mono)}
+.bd-pos{color:var(--green)}.bd-neg{color:var(--red)}.bd-zero{color:var(--text3)}
+.bd-note{font-size:.66rem;color:var(--text3);margin-top:.55rem;line-height:1.45;font-style:italic}
+
+.choice-impact-hint{font-size:.72rem;color:var(--amber);margin:.65rem 0 1rem;line-height:1.5;border-left:3px solid rgba(255,184,79,.35);padding:.45rem .65rem;background:rgba(255,184,79,.06);border-radius:0 10px 10px 0}
+
+.peak-eligible,.ninety-win{font-size:.76rem;color:var(--green);padding:.62rem .85rem;background:rgba(45,255,179,.06);border:1px solid rgba(45,255,179,.22);border-radius:11px;margin:.65rem 0;line-height:1.55}
+.peak-watch,.ninety-chase{font-size:.76rem;color:var(--text2);padding:.62rem .85rem;background:rgba(79,127,255,.06);border:1px solid rgba(79,127,255,.18);border-radius:11px;margin:.65rem 0;line-height:1.55}
+
+.secret-box{margin:.85rem 0;padding:1rem 1.1rem;border-radius:14px;border:1px solid var(--border);background:var(--bg3)}
+.secret-boon{border-color:rgba(45,255,179,.35);background:rgba(45,255,179,.05)}
+.secret-curse{border-color:rgba(255,79,107,.35);background:rgba(255,79,107,.06)}
+.secret-neutral{border-color:rgba(255,184,79,.28);background:rgba(255,184,79,.06)}
+.secret-none{border-style:dashed;opacity:.92}
+.secret-tag{font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--text3);margin-bottom:.35rem}
+.secret-code{font-family:var(--mono);font-size:1.05rem;font-weight:700;color:var(--amber);letter-spacing:.06em;margin:.35rem 0}
+.secret-desc{font-size:.78rem;color:var(--text2);line-height:1.55;margin:.35rem 0}
+.secret-delta{font-size:.74rem;font-weight:600;margin:.35rem 0}
+.secret-subtle{font-size:.68rem;color:var(--text3);margin-top:.55rem}
+.secret-toggle{margin-top:.65rem;width:100%;max-width:340px}
+.secret-toggle.on{box-shadow:0 0 0 2px rgba(155,95,255,.35)}
+
+.gambit-fate-meter{display:flex;height:28px;border-radius:8px;overflow:hidden;margin:.65rem 0;border:1px solid rgba(255,255,255,.1)}
+.gambit-fate-cohort,.gambit-fate-nature{display:flex;align-items:center;justify-content:center;min-width:2.5rem;font-size:.62rem;font-weight:700}
+.gambit-fate-cohort{background:linear-gradient(90deg,rgba(45,255,179,.35),rgba(45,255,179,.15));color:var(--green)}
+.gambit-fate-nature{background:linear-gradient(90deg,rgba(255,100,100,.15),rgba(255,100,100,.35));color:#ffb0b0}
+.gambit-fate-note{font-size:.72rem;color:var(--text2);line-height:1.5;margin:.5rem 0}
+.gambit-roll-result{padding:.55rem .65rem;border-radius:8px;font-size:.72rem;line-height:1.5;margin:.5rem 0}
+.gambit-roll-win{background:rgba(45,255,179,.1);border:1px solid rgba(45,255,179,.3)}
+.gambit-roll-loss{background:rgba(255,100,100,.08);border:1px solid rgba(255,100,100,.28)}
+.gambit-roll-line{margin:.15rem 0}
+.die-idle-face{min-width:2.2rem;font-size:.7rem;font-weight:700;color:var(--muted)}
+.round-verdict{text-align:center;padding:1rem;margin:1rem 0;border-radius:12px}
+.round-verdict-winner{background:rgba(45,255,179,.1);border:1px solid rgba(45,255,179,.4)}
+.round-verdict-loser{background:rgba(255,100,100,.08);border:1px solid rgba(255,100,100,.35)}
+.round-verdict-label{font-size:1.1rem;font-weight:800;margin-bottom:.25rem}
+.round-verdict-pct{font-size:2rem;font-weight:800;line-height:1}
+.round-verdict-winner .round-verdict-pct{color:var(--green)}
+.round-verdict-loser .round-verdict-pct{color:#ff8a8a}
+.round-verdict-sub{font-size:.72rem;color:var(--muted);margin-top:.35rem}
+.round-verdict-note{font-size:.78rem;color:var(--text2);margin:.65rem 0 0;line-height:1.5}
+.round-verdict-story{font-size:.8rem;color:var(--text2);margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(255,255,255,.08);line-height:1.55}
+.receipt-card{margin:var(--space-3) 0;padding:var(--space-3);border-radius:var(--radius-md);border:1px solid var(--border);background:var(--bg3)}
+.receipt-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:.75rem}
+.receipt-row{display:flex;justify-content:space-between;gap:.5rem;font-size:.8rem;padding:.4rem 0;border-bottom:1px solid var(--border)}
+.receipt-row:last-child{border-bottom:none}
+.receipt-ok{color:var(--green);font-weight:600}
+.receipt-bad{color:var(--red);font-weight:600}
+.receipt-pts{font-family:var(--mono);color:var(--purple)}
+.drift-note{font-size:.72rem;color:var(--text3);margin-top:.5rem;font-style:italic}
+.secret-box-life{margin:var(--space-2) 0}
+.round-summary{font-size:.88rem;color:var(--text2);line-height:1.65}
+.round-pts{color:var(--purple)}
+.outlook-bar{margin:.85rem 0 1rem;padding:.7rem .85rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3)}
+.outlook-lbl{font-size:.68rem;color:var(--text3);margin-bottom:.5rem}
+.outlook-track{display:flex;height:8px;border-radius:6px;overflow:hidden;background:rgba(255,255,255,.05)}
+.outlook-seg{display:block;height:100%;min-width:2px}
+.os-survive{background:var(--green)}
+.os-damage{background:var(--amber)}
+.os-extinct{background:var(--red)}
+.outlook-legend{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:.45rem;font-size:.62rem;color:var(--text3)}
+.receipt-sub{font-size:.68rem;color:var(--text3);font-weight:400}
+.receipt-warn{color:var(--amber);font-weight:600}
+.res-cap{font-size:.72em;opacity:.5;font-weight:500}
+.resource-meter{height:4px;margin-top:.45rem;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}
+.resource-meter-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--green),var(--teal));transition:width .35s ease}
+.lab-cost-badge{position:absolute;top:6px;right:6px;font-size:.58rem;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(155,95,255,.2);color:var(--purple)}
+.cc{position:relative}
+.cc.unaffordable{opacity:.42;filter:grayscale(.5);cursor:not-allowed}
+.cc.unaffordable:hover{transform:none}
+.cc-locked{font-size:.62rem;color:var(--red);margin-top:.35rem;font-weight:600}
+.tag-devil{background:rgba(255,79,107,.15);color:var(--red);border:1px solid rgba(255,79,107,.35)}
+.gambit-panel{margin:var(--space-3) 0;padding:var(--space-3);border-radius:var(--radius-md);border:1px dashed rgba(255,184,79,.4);background:rgba(255,184,79,.06)}
+.gambit-title{font-size:.8rem;font-weight:700;color:var(--amber);margin-bottom:.45rem}
+.gambit-copy{font-size:.78rem;color:var(--text2);line-height:1.55;margin-bottom:.75rem}
+.dice-strip{display:flex;align-items:center;justify-content:center;gap:.65rem;margin:var(--space-2) 0}
+.round-verdict{text-align:center;padding:1rem;margin:1rem 0;border-radius:12px}
+.round-verdict-winner{background:rgba(45,255,179,.1);border:1px solid rgba(45,255,179,.4)}
+.round-verdict-loser{background:rgba(255,100,100,.08);border:1px solid rgba(255,100,100,.35)}
+.round-verdict-label{font-size:1.1rem;font-weight:800;margin-bottom:.25rem}
+.round-verdict-pct{font-size:2rem;font-weight:800;line-height:1}
+.round-verdict-winner .round-verdict-pct{color:var(--green)}
+.round-verdict-loser .round-verdict-pct{color:#ff8a8a}
+.round-verdict-sub{font-size:.72rem;color:var(--muted);margin-top:.35rem}
+.round-verdict-note{font-size:.78rem;color:var(--text2);margin:.65rem 0 0;line-height:1.5}
+.round-verdict-story{font-size:.8rem;color:var(--text2);margin-top:.55rem;padding-top:.55rem;border-top:1px solid rgba(255,255,255,.08);line-height:1.55}
+.round-cross-stats{display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap}

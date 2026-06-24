@@ -28,7 +28,10 @@ let ambientLight;
 let keyLight;
 let rimLight;
 let vitalityPulse;
+let bioGlobe;
 let running = false;
+
+const cameraTarget = { x: 0, y: 1.2, z: 6.2, lookY: 0.25 };
 
 const current = {
   phase: 'select',
@@ -239,6 +242,58 @@ function updateCreatures(game, dt) {
   }
 }
 
+function buildBioGlobe() {
+  const geo = new THREE.IcosahedronGeometry(1.1, 2);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0x4fffdf,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.35,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(3.2, 0.55, -0.8);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(1.15, 1.35, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x4f7fff,
+      transparent: true,
+      opacity: 0.2,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  mesh.add(ring);
+  return mesh;
+}
+
+function setCameraZone(phase, view) {
+  if (view !== 'lab') {
+    cameraTarget.x = 0;
+    cameraTarget.y = 1.2;
+    cameraTarget.z = 6.2;
+    cameraTarget.lookY = 0.25;
+    return;
+  }
+  if (phase === 'life' || phase === 'hybrid' || phase === 'subRoundEnd') {
+    cameraTarget.x = 0;
+    cameraTarget.y = 1.1;
+    cameraTarget.z = 5.4;
+    cameraTarget.lookY = 0.3;
+  } else if (phase === 'merging' || phase === 'cycling') {
+    cameraTarget.x = 0;
+    cameraTarget.y = 1.15;
+    cameraTarget.z = 5.8;
+    cameraTarget.lookY = 0.28;
+  } else {
+    cameraTarget.x = 0.2;
+    cameraTarget.y = 1.25;
+    cameraTarget.z = 6.5;
+    cameraTarget.lookY = 0.25;
+  }
+}
+
 function updateVitality(vitality, dt) {
   current.vitality = lerp(current.vitality, vitality, dt * 2);
   const v = current.vitality / 100;
@@ -359,6 +414,9 @@ export function initScene() {
   vitalityPulse.position.set(0, 0.2, 0);
   scene.add(vitalityPulse);
 
+  bioGlobe = buildBioGlobe();
+  scene.add(bioGlobe);
+
   window.addEventListener('resize', onResize);
   running = true;
   animate();
@@ -399,9 +457,15 @@ function animate() {
     vitalityPulse.scale.setScalar(1 + Math.sin(t * 1.5) * 0.04);
   }
 
-  camera.position.x = Math.sin(t * 0.12) * 0.35;
-  camera.position.y = 1.2 + Math.sin(t * 0.18) * 0.08;
-  camera.lookAt(0, 0.25, 0);
+  if (bioGlobe?.visible) {
+    bioGlobe.rotation.y += dt * 0.25;
+    bioGlobe.rotation.x = Math.sin(t * 0.15) * 0.08;
+  }
+
+  camera.position.x = lerp(camera.position.x, cameraTarget.x + Math.sin(t * 0.12) * 0.2, dt * 2);
+  camera.position.y = lerp(camera.position.y, cameraTarget.y + Math.sin(t * 0.18) * 0.06, dt * 2);
+  camera.position.z = lerp(camera.position.z, cameraTarget.z, dt * 2);
+  camera.lookAt(0, cameraTarget.lookY, 0);
 
   renderer.render(scene, camera);
 }
@@ -412,10 +476,18 @@ export function syncScene(game) {
 
   current.phase = game.PHASE;
   current.view = game.VIEW;
+  setCameraZone(game.PHASE, game.VIEW);
 
   updateCreatures(game, 1);
   applyPalette(realmFromGame(game), 1);
   updateVitality(game.PHASE === 'life' ? game.healthMeter ?? 100 : 100, 1);
+
+  if (bioGlobe) {
+    bioGlobe.visible =
+      game.VIEW === 'lab' &&
+      !game.showIntro &&
+      (game.PHASE === 'select' || game.gameAwaitingStart);
+  }
 
   const introOn = !!game.showIntro;
   document.body.classList.toggle('scene-intro', introOn);

@@ -1,5 +1,5 @@
-import { SURVIVAL_CYCLES_IN_COHORT, LIFE_STAGE_LABELS } from './constants.js';
-import { campaignForSlot } from './campaign.js';
+import { SURVIVAL_CYCLES_IN_COHORT, LIFE_STAGE_LABELS } from '../core/constants.js';
+import { campaignForSlot } from '../core/campaign.js';
 
 /** Narrative maturity — keyed by survival cycle 1–4 */
 export const CYCLE_PROFILE = {

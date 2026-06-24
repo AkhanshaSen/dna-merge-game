@@ -1,0 +1,8 @@
+/* Records hall + achievements */
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.55rem;margin-top:.75rem}
+.ach-card{padding:.75rem;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--bg3);text-align:center;opacity:.45}
+.ach-card.unlocked{opacity:1;border-color:rgba(45,255,179,.28);background:rgba(45,255,179,.04)}
+.ach-icon{font-size:1.4rem;display:block;margin-bottom:.35rem}
+.ach-name{font-size:.72rem;font-weight:600}
+.ach-desc{font-size:.62rem;color:var(--text3);margin-top:.25rem;line-height:1.35}
+.records-filter{display:flex;gap:.4rem;margin-bottom:.75rem;flex-wrap:wrap}

@@ -1,0 +1,74 @@
+/* App shell — 3-panel dashboard */
+.app-shell{
+  display:grid;
+  grid-template-columns:220px minmax(0,1fr);
+  min-height:100vh;
+  position:relative;
+  z-index:1;
+}
+.app-main{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  min-height:100vh;
+}
+.app-body{
+  display:grid;
+  grid-template-columns:minmax(0,1fr)300px;
+  gap:1.25rem;
+  padding:.25rem 1.25rem 5rem;
+  flex:1;
+  align-items:start;
+}
+.app-content{min-width:0;width:100%;padding-top:.15rem}
+.app-content #main{width:100%;max-width:100%}
+.app-rail{
+  position:sticky;
+  top:.75rem;
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+  max-height:calc(100vh - 8rem);
+  overflow-y:auto;
+  min-width:0;
+  width:100%;
+  padding-top:.15rem;
+}
+.app-mission{padding:.85rem 1.25rem 0}
+.mobile-tabs{display:none}
+
+@media(max-width:1099px){
+  .app-shell{grid-template-columns:1fr}
+  .app-sidebar{display:none}
+  .app-body{
+    grid-template-columns:1fr;
+    gap:1rem;
+    padding:.25rem 1rem 5.5rem;
+  }
+  .app-rail{
+    position:static;
+    max-height:none;
+    padding-top:0;
+  }
+  .rail-section{padding:1rem 1.15rem 1.1rem}
+  .mobile-tabs{
+    display:flex;
+    position:fixed;
+    bottom:0;left:0;right:0;
+    z-index:50;
+    background:rgba(9,17,31,.95);
+    border-top:1px solid var(--border);
+    backdrop-filter:blur(12px);
+    padding:.35rem;
+    gap:.25rem;
+  }
+  .mobile-tabs .tb{
+    flex:1;
+    padding:.55rem;
+    font-size:.7rem;
+    font-weight:600;
+    color:var(--text3);
+    border-radius:10px;
+  }
+  .mobile-tabs .tb.on{color:var(--blue);background:rgba(79,127,255,.12)}
+}

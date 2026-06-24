@@ -1,7 +1,7 @@
-import { SUB_ROUNDS_PER_ROUND, FORECAST_WIN_ACCURACY } from './constants.js';
-import { game } from './state.js';
-import { countCrossTiers, gameWinnerEligible } from './cross-outcomes.js';
-import { roundForecastStats } from './round-tracker.js';
+import { SUB_ROUNDS_PER_ROUND, FORECAST_WIN_ACCURACY } from '../core/constants.js';
+import { game } from '../core/state.js';
+import { countCrossTiers, gameWinnerEligible } from '../core/cross-outcomes.js';
+import { roundForecastStats } from '../game/round-tracker.js';
 
 export const MAX_GAME_SESSIONS = 50;
 

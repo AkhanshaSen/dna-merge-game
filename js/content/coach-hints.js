@@ -1,15 +1,15 @@
-import { survivalRateLifeStage } from './life-round-logic.js';
-import { synergyBonus } from './game-logic.js';
+import { survivalRateLifeStage } from '../core/life-round-logic.js';
+import { synergyBonus } from '../core/game-logic.js';
 import {
   isDeployCorrectForCrisis,
   crisisHasSynergyDeploys,
   canAffordAnySynergyDeploy,
   isImproviseDeploy,
   isObserveDeploy,
-} from './deploy-match.js';
-import { revivalHintReason, isRevivalEligible } from './extinction-revival.js';
-import { RESOURCE_SOFT_CAP, SUB_ROUNDS_PER_ROUND } from './constants.js';
-import { game } from './state.js';
+} from '../core/deploy-match.js';
+import { revivalHintReason, isRevivalEligible } from '../core/extinction-revival.js';
+import { RESOURCE_SOFT_CAP, SUB_ROUNDS_PER_ROUND } from '../core/constants.js';
+import { game } from '../core/state.js';
 
 /** Approximate outcome bands from survival index (for player hints only) */
 export function outlookBands(rate) {

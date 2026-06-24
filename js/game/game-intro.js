@@ -1,11 +1,11 @@
 import {
   RESOURCE_SOFT_CAP,
   PASSES_PER_CROSS_SEQUENCE,
-} from './constants.js';
-import { game, savePersisted } from './state.js';
+} from '../core/constants.js';
+import { game, savePersisted } from '../core/state.js';
 import { beginRoundTracking } from './round-tracker.js';
-import { INTRO_STEPS } from './player-guide.js';
-export { INTRO_STEPS } from './player-guide.js';
+import { INTRO_STEPS } from '../content/player-guide.js';
+export { INTRO_STEPS } from '../content/player-guide.js';
 
 export const INTRO_STEP_COUNT = INTRO_STEPS.length;
 

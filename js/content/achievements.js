@@ -1,5 +1,5 @@
 import { showToast } from './toast.js';
-import { savePersisted } from './state.js';
+import { savePersisted } from '../core/state.js';
 
 export const ACHIEVEMENT_DEFS = [
   { id: 'first_hybrid', icon: '🧬', name: 'First splice', desc: 'Create your first hybrid cohort.' },

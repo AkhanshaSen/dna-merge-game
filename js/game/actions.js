@@ -18,10 +18,10 @@ import {
   CROSS_LAB_STIPEND,
   MIN_LAB_FOR_DEPLOY,
   CROSS_STEWARDSHIP_BONUS_PTS,
-} from './constants.js';
-import { findFounder } from './species.js';
-import { LS } from './storage.js';
-import { fbHybrid, fbNarrative, fbVerdict, fbCrossEndNarr } from './fallbacks.js';
+} from '../core/constants.js';
+import { findFounder } from '../core/species.js';
+import { LS } from '../core/storage.js';
+import { fbHybrid, fbNarrative, fbVerdict, fbCrossEndNarr } from '../core/fallbacks.js';
 import {
   blendTraits,
   avgScore,
@@ -29,7 +29,7 @@ import {
   mergeBlockReason,
   rollHybridDefect,
   applyTraitDriftToHybrid,
-} from './breeding.js';
+} from '../core/breeding.js';
 import {
   rndEvent,
   rollOutcome,
@@ -37,7 +37,7 @@ import {
   resolveStageVitality,
   rollGambitFate,
   applyGambitVitality,
-} from './game-logic.js';
+} from '../core/game-logic.js';
 import {
   canAffordDeploy,
   syncGambitMode,
@@ -47,11 +47,11 @@ import {
   applyStewardshipRefund,
   deployLabCost,
   applyCrossLabStipend,
-} from './resource-economy.js';
-import { setCoachForPhase } from './coach-hints.js';
-import { applyCampaignEventImpact, campaignForSlot } from './campaign.js';
-import { checkAchievements } from './achievements.js';
-import { showToast } from './toast.js';
+} from '../core/resource-economy.js';
+import { setCoachForPhase } from '../content/coach-hints.js';
+import { applyCampaignEventImpact, campaignForSlot } from '../core/campaign.js';
+import { checkAchievements } from '../content/achievements.js';
+import { showToast } from '../content/toast.js';
 import {
   game,
   resetSession,
@@ -59,22 +59,22 @@ import {
   savePersisted,
   resetRoundSession,
   resetCrossSession,
-} from './state.js';
-import { render } from './render.js';
-import { canonicalCorrectResource, survivalRateLifeStage, dicePhaseForLifeStage } from './life-round-logic.js';
+} from '../core/state.js';
+import { render } from '../ui/render/index.js';
+import { canonicalCorrectResource, survivalRateLifeStage, dicePhaseForLifeStage } from '../core/life-round-logic.js';
 import {
   isDeployCorrectForCrisis,
   isObserveDeploy,
   isImproviseDeploy,
-} from './deploy-match.js';
+} from '../core/deploy-match.js';
 import {
   isRevivalEligible,
   applyExtinctionRevival,
   revivalWouldCompleteCross,
-} from './extinction-revival.js';
+} from '../core/extinction-revival.js';
 import { recordCrossOutcome } from './round-tracker.js';
-import { evaluateCrossEnd, CROSS_TIER } from './cross-outcomes.js';
-import { archiveCompletedGame } from './history-groups.js';
+import { evaluateCrossEnd, CROSS_TIER } from '../core/cross-outcomes.js';
+import { archiveCompletedGame } from '../content/history-groups.js';
 import {
   startNewGame,
   declineStartGame,
@@ -83,7 +83,7 @@ import {
   introStepIndex,
   INTRO_STEP_COUNT,
 } from './game-intro.js';
-import { markHintSeen } from './player-guide.js';
+import { markHintSeen } from '../content/player-guide.js';
 
 function clampResource(n) {
   return Math.min(Math.max(0, n), RESOURCE_SOFT_CAP);
@@ -136,7 +136,10 @@ export function dismissDevil() {
 
 export function switchView(v) {
   game.VIEW = v;
-  document.querySelectorAll('.tb').forEach((t) => t.classList.toggle('on', t.dataset.v === v));
+  document.querySelectorAll('.tb, .nav-item').forEach((t) => {
+    const match = t.dataset.v === v;
+    t.classList.toggle('on', match);
+  });
   render();
 }
 

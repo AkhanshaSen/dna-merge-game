@@ -1,5 +1,5 @@
-import { game } from './state.js';
-import { INTRO_STEPS, INTRO_STEP_COUNT, introStepIndex, nextGameNumber } from './game-intro.js';
+import { game } from '../../core/state.js';
+import { INTRO_STEPS, INTRO_STEP_COUNT, introStepIndex, nextGameNumber } from '../../game/game-intro.js';
 import { introStepIconHtml } from './creature-visuals.js';
 
 const AUTO_MS = 6000;

@@ -1,13 +1,13 @@
-import { SUB_ROUNDS_PER_ROUND, LIFE_STAGES_PER_SUBROUND, FORECAST_WIN_ACCURACY } from './constants.js';
-import { game } from './state.js';
+import { SUB_ROUNDS_PER_ROUND, LIFE_STAGES_PER_SUBROUND, FORECAST_WIN_ACCURACY } from '../core/constants.js';
+import { game } from '../core/state.js';
 import {
   CROSS_TIER,
   crossForecastStats,
   countCrossTiers,
   gameWinnerEligible,
-} from './cross-outcomes.js';
-import { fbGameEndVerdict } from './fallbacks.js';
-import { recordPortrait } from './creature-visuals.js';
+} from '../core/cross-outcomes.js';
+import { fbGameEndVerdict } from '../core/fallbacks.js';
+import { recordPortrait } from '../ui/visuals/creature-visuals.js';
 
 /** e.g. "Game 1 · Cross 3 (final cross)" */
 export function gameProgressLabel(opts = {}) {
